@@ -160,6 +160,11 @@ export interface Catalog {
 export interface StoreState {
   ready: boolean
   messages: Message[]
+  /** Count of oldest messages trimmed from the DISPLAY by the rolling cap (live
+   *  overflow + resume slice). Drives the "N earlier messages" truncation notice;
+   *  0 when nothing's been dropped. NOT context loss — the model's history lives on
+   *  the gateway (see MESSAGE_CAP); this only bounds in-TUI scrollback. */
+  dropped: number
   theme: Theme
   /** The active blocking prompt (composer is hidden while set); undefined when none. */
   prompt: ActivePrompt | undefined
@@ -295,17 +300,22 @@ export function createSessionStore() {
   // `<For>` UNMOUNT exactly the evicted oldest rows → `Renderable.destroy()` →
   // `yogaNode.free()`, returning those nodes to the WASM allocator's free list.
   //
-  // 400 is generous (far more than a screenful) but bounded; opencode caps at 100.
+  // Default 3000 (≈1500 turns of scrollback): the highest cap whose steady-state RSS
+  // stays within a sane TUI budget on the realistic-fixture bench (~20.4 renderables/
+  // msg, ~0.65 MB/msg → ~2 GB at 3000 — and that ceiling is only reached by marathon
+  // 3000+-message sessions; typical sessions cost a fraction). opencode caps at 100;
+  // we trade memory for far more in-TUI scrollback (the dashboard holds the rest).
   // Read once per store from `HERMES_TUI_MAX_MESSAGES`. Turns trimmed beyond the cap
   // aren't lost — they live on the gateway and are recoverable via `/resume`.
   const MESSAGE_CAP = (() => {
     const raw = Number.parseInt(process.env.HERMES_TUI_MAX_MESSAGES ?? '', 10)
-    return Number.isFinite(raw) && raw > 0 ? raw : 400
+    return Number.isFinite(raw) && raw > 0 ? raw : 3000
   })()
 
   const [state, setState] = createStore<StoreState>({
     ready: false,
     messages: [],
+    dropped: 0,
     theme: DEFAULT_THEME,
     prompt: undefined,
     pager: undefined,
@@ -367,7 +377,10 @@ export function createSessionStore() {
   // streaming assistant turn is always the LAST row, so head-trimming never drops it.
   function capMessages(draft: StoreState): void {
     const overflow = draft.messages.length - MESSAGE_CAP
-    if (overflow > 0) draft.messages.splice(0, overflow)
+    if (overflow > 0) {
+      draft.messages.splice(0, overflow)
+      draft.dropped += overflow
+    }
   }
 
   // ── parts helpers (operate on a draft message inside produce) ───────────
@@ -434,6 +447,7 @@ export function createSessionStore() {
   function clearTranscript() {
     setState('messages', [])
     setState('subagents', [])
+    setState('dropped', 0)
     // Drop the dedup history too — a fresh transcript should re-process any id.
     applied.clear()
   }
@@ -788,6 +802,9 @@ export function createSessionStore() {
     // across the resume RPC, replayed below, self-cap via capMessages per push.)
     const capped = snapshot.length > MESSAGE_CAP ? snapshot.slice(-MESSAGE_CAP) : snapshot
     setState('messages', capped)
+    // A resume is a fresh view → SET (not accumulate) the dropped count to what the
+    // snapshot slice hid, so the notice reflects this session. Live pushes add to it.
+    setState('dropped', snapshot.length - capped.length)
     const pending = buffering ?? []
     buffering = null
     for (const event of pending) applyNow(event)

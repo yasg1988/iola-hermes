@@ -21,9 +21,13 @@ import type { SessionStore } from '../logic/store.ts'
 import { HomeHint } from './homeHint.tsx'
 import { MessageLine } from './messageLine.tsx'
 import { ScrollAnchorProvider } from './scrollAnchor.tsx'
+import { useTheme } from './theme.tsx'
 
 export function Transcript(props: { store: SessionStore }) {
   const [scroll, setScroll] = createSignal<ScrollBoxRenderable | undefined>()
+  const theme = useTheme()
+  const dropped = () => props.store.state.dropped
+  const sid = () => props.store.state.sessionId
   return (
     <box style={{ flexGrow: 1, minHeight: 0 }}>
       <scrollbox ref={setScroll} style={{ flexGrow: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
@@ -31,6 +35,15 @@ export function Transcript(props: { store: SessionStore }) {
           {/* empty-transcript home screen (item 12); replaced by messages on the first turn */}
           <Show when={props.store.state.messages.length === 0}>
             <HomeHint store={props.store} />
+          </Show>
+          {/* Honest truncation notice: the rolling cap hides the OLDEST rows from the
+              DISPLAY (never the model's context — that lives on the gateway). Point to
+              the dashboard for the full transcript. selectable=false → it's chrome,
+              excluded from copy/selection. */}
+          <Show when={dropped() > 0}>
+            <text selectable={false} style={{ fg: theme().color.muted }}>
+              {`⤒ ${dropped()} earlier message${dropped() === 1 ? '' : 's'} — scroll-back capped; full transcript on the dashboard${sid() ? ` · session ${sid()}` : ''}`}
+            </text>
           </Show>
           <For each={props.store.state.messages}>{message => <MessageLine message={message} />}</For>
         </ScrollAnchorProvider>

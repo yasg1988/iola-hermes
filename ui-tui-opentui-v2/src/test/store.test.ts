@@ -470,6 +470,7 @@ describe('session store — rolling message cap (bounds the Yoga node high-water
     // push more than the cap; each distinct so we can tell which survived
     for (let i = 0; i < 55; i++) store.pushUser(`msg ${i}`)
     expect(store.state.messages).toHaveLength(5)
+    expect(store.state.dropped).toBe(50) // head-sliced overflow is counted for the notice
     // the oldest 50 were sliced from the head; survivors are the last 5 (msg 50..54)
     expect(store.state.messages[0]!.text).toBe('msg 50')
     expect(store.state.messages.at(-1)!.text).toBe('msg 54')
@@ -524,15 +525,16 @@ describe('session store — rolling message cap (bounds the Yoga node high-water
     store.beginBuffer()
     store.commitSnapshot(snapshot)
     expect(store.state.messages).toHaveLength(3)
+    expect(store.state.dropped).toBe(5) // 8 snapshot − 3 kept; resume SETS the count
     expect(store.state.messages[0]!.text).toBe('h5')
     expect(store.state.messages.at(-1)!.text).toBe('h7')
   })
 
-  test('defaults to 400 when the env var is unset/invalid', () => {
+  test('defaults to 3000 when the env var is unset/invalid', () => {
     delete process.env[ENV_KEY]
     const store = createSessionStore()
-    for (let i = 0; i < 450; i++) store.pushUser(`m${i}`)
-    expect(store.state.messages).toHaveLength(400)
+    for (let i = 0; i < 3050; i++) store.pushUser(`m${i}`)
+    expect(store.state.messages).toHaveLength(3000)
     expect(store.state.messages[0]!.text).toBe('m50') // oldest 50 dropped
   })
 
@@ -547,5 +549,14 @@ describe('session store — rolling message cap (bounds the Yoga node high-water
     expect(store.state.messages).toHaveLength(0)
     // after clear the previously-seen id is processed again (the applied Set was cleared)
     expect(store.duplicate('seen-1')).toBe(false)
+  })
+
+  test('clearTranscript resets the dropped counter (the truncation notice clears)', () => {
+    process.env[ENV_KEY] = '2'
+    const store = createSessionStore()
+    for (let i = 0; i < 5; i++) store.pushUser(`m${i}`) // 5 pushed, cap 2 → 3 dropped
+    expect(store.state.dropped).toBe(3)
+    store.clearTranscript()
+    expect(store.state.dropped).toBe(0)
   })
 })
