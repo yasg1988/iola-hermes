@@ -1,0 +1,57 @@
+name: Publish npm Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish iola-hermes to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Check npm token
+        id: npm-token
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN is not configured; skipping npm publish"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check package version
+        id: package
+        working-directory: packaging/npm/iola-hermes
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          name="$(node -p "require('./package.json').name")"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          published="$(npm view "$name@$version" version 2>/dev/null || true)"
+          if [ "$published" = "$version" ]; then
+            echo "::notice::$name@$version is already published; skipping"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish package
+        if: steps.npm-token.outputs.enabled == 'true' && steps.package.outputs.exists != 'true'
+        working-directory: packaging/npm/iola-hermes
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

@@ -1,0 +1,81 @@
+name: Desktop Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing GitHub Release tag to attach artifacts to, for example v2026.6.21'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows desktop
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows installers
+        run: npm run --prefix apps/desktop dist:win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: desktop-windows
+          path: apps/desktop/release/*
+
+      - name: Attach to GitHub Release
+        if: github.event_name == 'release' || github.event.inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
+        shell: bash
+        run: gh release upload "$RELEASE_TAG" apps/desktop/release/* --repo "$GITHUB_REPOSITORY" --clobber
+
+  build-linux:
+    name: Build Linux desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Linux packaging dependencies
+        run: sudo apt-get update && sudo apt-get install -y rpm fakeroot dpkg-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Linux packages
+        run: npm run --prefix apps/desktop dist:linux
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: desktop-linux
+          path: apps/desktop/release/*
+
+      - name: Attach to GitHub Release
+        if: github.event_name == 'release' || github.event.inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
+        run: gh release upload "$RELEASE_TAG" apps/desktop/release/* --repo "$GITHUB_REPOSITORY" --clobber
