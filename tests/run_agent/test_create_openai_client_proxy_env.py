@@ -22,7 +22,12 @@ from unittest.mock import patch
 
 import httpx
 
-from run_agent import AIAgent, _get_proxy_from_env, _get_proxy_for_base_url
+from run_agent import (
+    AIAgent,
+    IOLA_MANAGED_PROXY_URL,
+    _get_proxy_from_env,
+    _get_proxy_for_base_url,
+)
 
 
 def _make_agent():
@@ -120,7 +125,8 @@ def test_create_openai_client_no_proxy_when_env_unset(mock_openai, monkeypatch):
     """Without proxy env vars, the keepalive transport must still be installed
     and no HTTPProxy mount should exist."""
     for key in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
-                "https_proxy", "http_proxy", "all_proxy"):
+                "https_proxy", "http_proxy", "all_proxy",
+                "IOLA_MANAGED_PROXY_DISABLED"):
         monkeypatch.delenv(key, raising=False)
 
     agent = _make_agent()
@@ -138,8 +144,9 @@ def test_create_openai_client_no_proxy_when_env_unset(mock_openai, monkeypatch):
         for mount in http_client._mounts.values()
         if mount is not None and hasattr(mount, "_pool")
     ]
-    assert "HTTPProxy" not in pool_types, (
-        "No proxy env set but httpx.Client still mounted HTTPProxy; "
+    assert "HTTPProxy" in pool_types, (
+        "No user proxy env set, so Hermes RU Iola should mount its managed "
+        "egress proxy for remote non-RU providers; "
         "pools were %r" % (pool_types,)
     )
     http_client.close()
@@ -183,9 +190,38 @@ def test_get_proxy_for_base_url_returns_none_when_proxy_unset(monkeypatch):
                 "https_proxy", "http_proxy", "all_proxy",
                 "NO_PROXY", "no_proxy"):
         monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("IOLA_MANAGED_PROXY_DISABLED", "1")
     monkeypatch.setenv("NO_PROXY", "localhost,127.0.0.1")
     assert _get_proxy_for_base_url("http://127.0.0.1:11434/v1") is None
     assert _get_proxy_for_base_url("https://api.openai.com/v1") is None
+
+
+def test_get_proxy_for_base_url_uses_iola_managed_proxy_by_default(monkeypatch):
+    for key in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
+                "https_proxy", "http_proxy", "all_proxy",
+                "NO_PROXY", "no_proxy", "IOLA_MANAGED_PROXY_DISABLED"):
+        monkeypatch.delenv(key, raising=False)
+    assert _get_proxy_for_base_url("https://api.openai.com/v1") == IOLA_MANAGED_PROXY_URL
+    assert _get_proxy_for_base_url("https://openrouter.ai/api/v1") == IOLA_MANAGED_PROXY_URL
+
+
+def test_get_proxy_for_base_url_bypasses_ru_providers(monkeypatch):
+    for key in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
+                "https_proxy", "http_proxy", "all_proxy",
+                "NO_PROXY", "no_proxy", "IOLA_MANAGED_PROXY_DISABLED"):
+        monkeypatch.delenv(key, raising=False)
+    assert _get_proxy_for_base_url("https://ai.api.cloud.yandex.net/v1") is None
+    assert _get_proxy_for_base_url("https://gigachat.devices.sberbank.ru/api/v1") is None
+    assert _get_proxy_for_base_url("https://ngw.devices.sberbank.ru:9443/api/v2/oauth") is None
+
+
+def test_user_proxy_overrides_iola_managed_proxy(monkeypatch):
+    for key in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
+                "https_proxy", "http_proxy", "all_proxy",
+                "NO_PROXY", "no_proxy", "IOLA_MANAGED_PROXY_DISABLED"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("HTTPS_PROXY", "http://user-proxy:8080")
+    assert _get_proxy_for_base_url("https://api.openai.com/v1") == "http://user-proxy:8080"
 
 
 @patch("run_agent.OpenAI")

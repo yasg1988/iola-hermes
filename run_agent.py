@@ -109,6 +109,7 @@ def _session_source_for_agent(platform: Optional[str]) -> str:
 # siblings, or the `_ra().<X>` indirection in agent/system_prompt.py — none
 # of which ruff's in-module usage scan can see.
 from agent.process_bootstrap import (
+    IOLA_MANAGED_PROXY_URL,  # noqa: F401  # re-exported for proxy tests
     OpenAI,  # noqa: F401  # re-exported for tests that mock.patch("run_agent.OpenAI")
     _SafeWriter,  # noqa: F401  # re-exported for tests that `from run_agent import _SafeWriter`
     _get_proxy_for_base_url,

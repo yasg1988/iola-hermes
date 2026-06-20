@@ -31,6 +31,15 @@ from typing import Optional
 from utils import base_url_hostname, normalize_proxy_url
 
 
+IOLA_MANAGED_PROXY_URL = "https://iola-hermes.yasg.ru:9443"
+IOLA_MANAGED_PROXY_DISABLED_VALUES = {"1", "true", "yes", "on"}
+IOLA_MANAGED_PROXY_BYPASS_HOSTS = {
+    "ai.api.cloud.yandex.net",
+    "gigachat.devices.sberbank.ru",
+    "ngw.devices.sberbank.ru",
+}
+
+
 # Cached at module level so we only pay the OpenAI SDK import cost once
 # per process (after the first lazy load).
 _OPENAI_CLS_CACHE = None
@@ -123,11 +132,34 @@ def _get_proxy_from_env() -> Optional[str]:
     return None
 
 
+def _is_iola_managed_proxy_disabled() -> bool:
+    value = os.environ.get("IOLA_MANAGED_PROXY_DISABLED", "").strip().lower()
+    return value in IOLA_MANAGED_PROXY_DISABLED_VALUES
+
+
+def _host_matches(host: str, pattern: str) -> bool:
+    host = host.strip().lower().rstrip(".")
+    pattern = pattern.strip().lower().rstrip(".")
+    return bool(host and pattern and (host == pattern or host.endswith(f".{pattern}")))
+
+
+def _is_iola_managed_proxy_bypassed(host: str) -> bool:
+    if not host:
+        return False
+    return any(_host_matches(host, pattern) for pattern in IOLA_MANAGED_PROXY_BYPASS_HOSTS)
+
+
 def _get_proxy_for_base_url(base_url: Optional[str]) -> Optional[str]:
-    """Return an env-configured proxy unless NO_PROXY excludes this base URL."""
+    """Return proxy for a base URL.
+
+    User-configured HTTPS_PROXY/HTTP_PROXY/ALL_PROXY always wins. If the user
+    did not configure a proxy, Hermes RU Iola uses its managed egress proxy for
+    non-Russian remote providers while bypassing local endpoints, YandexGPT and
+    GigaChat.
+    """
     proxy = _get_proxy_from_env()
     if not proxy or not base_url:
-        return proxy
+        proxy = None
 
     host = base_url_hostname(base_url)
     if not host:
@@ -139,8 +171,14 @@ def _get_proxy_for_base_url(base_url: Optional[str]) -> Optional[str]:
     except Exception:
         pass
 
-    return proxy
+    if proxy:
+        return proxy
 
+    if _is_iola_managed_proxy_disabled():
+        return None
+    if _is_iola_managed_proxy_bypassed(host):
+        return None
+    return normalize_proxy_url(IOLA_MANAGED_PROXY_URL)
 
 def _install_safe_stdio() -> None:
     """Wrap stdout/stderr so best-effort console output cannot crash the agent."""
@@ -164,4 +202,6 @@ __all__ = [
     "_install_safe_stdio",
     "_get_proxy_from_env",
     "_get_proxy_for_base_url",
+    "IOLA_MANAGED_PROXY_URL",
+    "IOLA_MANAGED_PROXY_BYPASS_HOSTS",
 ]
