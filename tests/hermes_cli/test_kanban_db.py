@@ -3027,6 +3027,7 @@ def test_resolve_hermes_argv_prefers_path_shim(monkeypatch):
     import hermes_cli.kanban_db as kb
 
     monkeypatch.delenv("HERMES_BIN", raising=False)
+    monkeypatch.setattr(kb, "_IS_WINDOWS", False)
     monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/hermes")
     argv = kb._resolve_hermes_argv()
     assert argv == ["/usr/local/bin/hermes"]
@@ -3088,6 +3089,7 @@ def test_resolve_hermes_argv_hermes_bin_bare_name_uses_path(monkeypatch, tmp_pat
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PATH", str(path_hermes.parent))
     monkeypatch.setenv("HERMES_BIN", "hermes")
+    monkeypatch.setattr(kb, "_IS_WINDOWS", False)
 
     assert kb._resolve_hermes_argv() == [str(path_hermes)]
 
@@ -3146,6 +3148,7 @@ def test_resolve_hermes_argv_falls_back_to_module_form_when_no_path_shim(monkeyp
     import hermes_cli.kanban_db as kb
 
     monkeypatch.delenv("HERMES_BIN", raising=False)
+    monkeypatch.setattr(kb, "_IS_WINDOWS", False)
     monkeypatch.setattr(shutil, "which", lambda name: None)
     argv = kb._resolve_hermes_argv()
     assert argv == [sys.executable, "-m", "hermes_cli.main"]
@@ -3174,7 +3177,7 @@ def test_resolve_hermes_argv_module_actually_runs():
         f"`{' '.join(argv)} --version` failed (rc={r.returncode}); "
         f"stderr={r.stderr[:200]!r}"
     )
-    assert "Hermes Agent" in r.stdout, f"unexpected output: {r.stdout[:200]!r}"
+    assert "Hermes RU Iola" in r.stdout, f"unexpected output: {r.stdout[:200]!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -4327,7 +4330,7 @@ def test_write_txn_check_reads_correct_header_fields(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_reap_worker_zombies_returns_count():
+def test_reap_worker_zombies_returns_count(monkeypatch):
     """reap_worker_zombies() returns the list of reaped PIDs."""
     from unittest.mock import patch
 
@@ -4341,6 +4344,7 @@ def test_reap_worker_zombies_returns_count():
             return p, 0
         return 0, 0
 
+    monkeypatch.setattr("hermes_cli.kanban_db.os.name", "posix")
     with patch("hermes_cli.kanban_db.os.waitpid", side_effect=fake_waitpid):
         with patch("hermes_cli.kanban_db._record_worker_exit"):
             pids = kb.reap_worker_zombies()
@@ -4358,16 +4362,17 @@ def test_reap_worker_zombies_noop_on_windows(monkeypatch):
     assert result == []
 
 
-def test_reap_worker_zombies_noop_no_children():
+def test_reap_worker_zombies_noop_no_children(monkeypatch):
     """reap_worker_zombies() returns 0 without error when there are no children."""
     from unittest.mock import patch
 
+    monkeypatch.setattr("hermes_cli.kanban_db.os.name", "posix")
     with patch("hermes_cli.kanban_db.os.waitpid", side_effect=ChildProcessError):
         result = kb.reap_worker_zombies()
     assert result == []
 
 
-def test_reap_worker_zombies_records_exit_status():
+def test_reap_worker_zombies_records_exit_status(monkeypatch):
     """reap_worker_zombies() calls _record_worker_exit for each reaped pid."""
     from unittest.mock import patch
 
@@ -4380,6 +4385,7 @@ def test_reap_worker_zombies_records_exit_status():
             return 12345, 0
         return 0, 0
 
+    monkeypatch.setattr("hermes_cli.kanban_db.os.name", "posix")
     with patch("hermes_cli.kanban_db.os.waitpid", side_effect=fake_waitpid):
         with patch(
             "hermes_cli.kanban_db._record_worker_exit",
@@ -4390,16 +4396,17 @@ def test_reap_worker_zombies_records_exit_status():
     assert calls == [(12345, 0)]
 
 
-def test_reap_worker_zombies_handles_waitpid_os_error():
+def test_reap_worker_zombies_handles_waitpid_os_error(monkeypatch):
     """reap_worker_zombies() does not propagate generic OSError from os.waitpid."""
     from unittest.mock import patch
 
+    monkeypatch.setattr("hermes_cli.kanban_db.os.name", "posix")
     with patch("hermes_cli.kanban_db.os.waitpid", side_effect=OSError("test error")):
         result = kb.reap_worker_zombies()
     assert result == []
 
 
-def test_zombie_reaper_runs_despite_board_connect_failure():
+def test_zombie_reaper_runs_despite_board_connect_failure(monkeypatch):
     """reap_worker_zombies runs even when a board tick raises an error."""
     from unittest.mock import patch
 
@@ -4411,6 +4418,7 @@ def test_zombie_reaper_runs_despite_board_connect_failure():
             return [12345, 67890][call_count[0] - 1], 0
         return 0, 0
 
+    monkeypatch.setattr("hermes_cli.kanban_db.os.name", "posix")
     with patch("hermes_cli.kanban_db.os.waitpid", side_effect=fake_waitpid):
         with patch("hermes_cli.kanban_db._record_worker_exit"):
             # Simulate a board tick failure before reaping
@@ -4425,7 +4433,7 @@ def test_zombie_reaper_runs_despite_board_connect_failure():
     assert pids == [12345, 67890]
 
 
-def test_zombie_reaper_survives_all_boards_failing():
+def test_zombie_reaper_survives_all_boards_failing(monkeypatch):
     """reap_worker_zombies runs each tick regardless of board tick failures."""
     from unittest.mock import patch
 
@@ -4446,6 +4454,7 @@ def test_zombie_reaper_survives_all_boards_failing():
     # 5 ticks, 2 zombies per tick = 10 total
     for tick in range(5):
         pids = [tick * 100 + 1, tick * 100 + 2]
+        monkeypatch.setattr("hermes_cli.kanban_db.os.name", "posix")
         with patch(
             "hermes_cli.kanban_db.os.waitpid", side_effect=make_fake_waitpid(pids)
         ):

@@ -5008,6 +5008,17 @@ def _classify_worker_exit(pid: int) -> "tuple[str, Optional[int]]":
             return ("signaled", os.WTERMSIG(raw))
     except Exception:
         pass
+
+    # Some platforms expose POSIX wait helpers but do not decode POSIX-shaped
+    # raw statuses consistently in tests. The reaper stores the raw waitpid
+    # value, so fall back to the standard wait-status layout explicitly.
+    if raw >= 0 and raw & 0x7F == 0:
+        code = (raw >> 8) & 0xFF
+        if code == 0:
+            return ("clean_exit", 0)
+        if code == KANBAN_RATE_LIMIT_EXIT_CODE:
+            return ("rate_limited", code)
+        return ("nonzero_exit", code)
     return ("unknown", None)
 
 
@@ -5022,7 +5033,7 @@ def reap_worker_zombies() -> "list[int]":
         try:
             while True:
                 try:
-                    pid, status = os.waitpid(-1, os.WNOHANG)
+                    pid, status = os.waitpid(-1, getattr(os, "WNOHANG", 1))
                 except ChildProcessError:
                     break
                 if pid == 0:

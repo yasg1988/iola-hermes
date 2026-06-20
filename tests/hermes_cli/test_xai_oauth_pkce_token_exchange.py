@@ -207,7 +207,7 @@ def test_empty_code_verifier_raises_without_posting(post_recorder):
             code_challenge="c" * 43,
         )
     assert exc_info.value.code == "xai_pkce_verifier_missing"
-    assert "26990" in str(exc_info.value)
+    assert "https://github.com/yasg1988/iola-hermes/issues" in str(exc_info.value)
     # And critically: nothing was sent.
     assert post_recorder.calls == []
 

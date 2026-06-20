@@ -502,7 +502,7 @@ class TestBackgroundInCLICommands:
     def test_background_in_session_category(self):
         """The /background command is in the Session category."""
         from hermes_cli.commands import COMMANDS_BY_CATEGORY
-        assert "/background" in COMMANDS_BY_CATEGORY["Session"]
+        assert "/background" in COMMANDS_BY_CATEGORY["Сессия"]
 
     def test_background_autocompletes(self):
         """The /background command appears in autocomplete results."""

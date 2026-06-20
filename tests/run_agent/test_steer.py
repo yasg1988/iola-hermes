@@ -305,7 +305,7 @@ class TestSteerCommandRegistry:
         cmd = resolve_command("steer")
         assert cmd is not None
         assert cmd.name == "steer"
-        assert cmd.category == "Session"
+        assert cmd.category == "Сессия"
         assert cmd.args_hint == "<prompt>"
 
     def test_steer_in_bypass_set(self):

@@ -354,7 +354,7 @@ def test_goal_command_dispatches_in_cli_registry_helpers():
     from hermes_cli.commands import COMMANDS, COMMANDS_BY_CATEGORY
 
     assert "/goal" in COMMANDS
-    session_cmds = COMMANDS_BY_CATEGORY.get("Session", {})
+    session_cmds = COMMANDS_BY_CATEGORY.get("Сессия", {})
     assert "/goal" in session_cmds
 
 

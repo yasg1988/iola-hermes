@@ -120,4 +120,4 @@ class TestBusyCommandRegistry(unittest.TestCase):
 
         busy = next(c for c in COMMAND_REGISTRY if c.name == "busy")
         assert busy.args_hint == "[queue|steer|interrupt|status]"
-        assert busy.category == "Configuration"
+        assert busy.category == "Настройки"
