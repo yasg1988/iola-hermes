@@ -1,7 +1,7 @@
 {
-  "name": "hermes-agent",
+  "name": "iola-hermes-monorepo",
   "version": "1.0.0",
-  "description": "An AI agent with advanced tool-calling capabilities, featuring a flexible toolsets system for organizing and managing tools.",
+  "description": "Hermes RU Iola: русскоязычный форк NousResearch Hermes Agent.",
   "private": true,
   "workspaces": [
     "apps/*",

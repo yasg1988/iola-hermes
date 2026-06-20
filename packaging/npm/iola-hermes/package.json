@@ -1,0 +1,29 @@
+{
+  "name": "iola-hermes",
+  "version": "0.17.0",
+  "description": "npm wrapper для Hermes RU Iola, русскоязычного форка Hermes Agent.",
+  "license": "MIT",
+  "author": "Yakunin <yasg1988@gmail.com>",
+  "homepage": "https://github.com/yasg1988/iola-hermes#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yasg1988/iola-hermes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yasg1988/iola-hermes/issues"
+  },
+  "bin": {
+    "iola-hermes": "bin/iola-hermes.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install-python-backend.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md"
+  ]
+}

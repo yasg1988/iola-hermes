@@ -1,0 +1,5 @@
+name: your-provider-profile
+kind: model-provider
+version: 1.0.0
+description: OpenAI-compatible профиль провайдера для Hermes RU Iola
+author: Yakunin
