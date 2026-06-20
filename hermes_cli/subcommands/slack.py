@@ -16,20 +16,20 @@ def build_slack_parser(subparsers, *, cmd_slack: Callable) -> None:
     # =========================================================================
     slack_parser = subparsers.add_parser(
         "slack",
-        help="Slack integration helpers (manifest generation, etc.)",
-        description="Slack integration helpers for Hermes.",
+        help="Помощники интеграции Slack (генерация manifest и т.п.)",
+        description="Помощники интеграции Slack для Hermes.",
     )
     slack_sub = slack_parser.add_subparsers(dest="slack_command")
     slack_manifest = slack_sub.add_parser(
         "manifest",
-        help="Print or write a Slack app manifest with every gateway command "
-        "registered as a native slash (/btw, /stop, /model, ...)",
+        help="Вывести или записать manifest Slack app со всеми gateway-командами "
+        "как native slash-командами (/btw, /stop, /model, ...)",
         description=(
-            "Generate a Slack app manifest that registers every gateway "
-            "command in COMMAND_REGISTRY as a first-class Slack slash "
-            "command (matching Discord and Telegram parity). Paste the "
-            "output into Slack app config → Features → App Manifest → "
-            "Edit, then Save. Reinstall the app if Slack prompts for it."
+            "Сгенерировать Slack app manifest, который регистрирует каждую "
+            "gateway-команду из COMMAND_REGISTRY как полноценную Slack slash-"
+            "команду (паритет с Discord и Telegram). Вставьте вывод в "
+            "Slack app config -> Features -> App Manifest -> Edit, затем Save. "
+            "Переустановите приложение, если Slack попросит."
         ),
     )
     slack_manifest.add_argument(
@@ -38,23 +38,23 @@ def build_slack_parser(subparsers, *, cmd_slack: Callable) -> None:
         const=True,
         default=None,
         metavar="PATH",
-        help="Write manifest to a file instead of stdout. With no PATH "
-        "writes to $HERMES_HOME/slack-manifest.json.",
+        help="Записать manifest в файл вместо stdout. Без PATH пишет в "
+        "$HERMES_HOME/slack-manifest.json.",
     )
     slack_manifest.add_argument(
         "--name",
         default=None,
-        help='Bot display name (default: "Hermes")',
+        help='Отображаемое имя бота (по умолчанию: "Hermes")',
     )
     slack_manifest.add_argument(
         "--description",
         default=None,
-        help="Bot description shown in Slack's app directory.",
+        help="Описание бота в каталоге приложений Slack.",
     )
     slack_manifest.add_argument(
         "--slashes-only",
         action="store_true",
-        help="Emit only the features.slash_commands array (for merging "
-        "into an existing manifest manually).",
+        help="Вывести только массив features.slash_commands (для ручного "
+        "слияния с существующим manifest).",
     )
     slack_parser.set_defaults(func=cmd_slack)

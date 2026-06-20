@@ -16,21 +16,21 @@ def build_prompt_size_parser(subparsers, *, cmd_prompt_size: Callable) -> None:
     # =========================================================================
     prompt_size_parser = subparsers.add_parser(
         "prompt-size",
-        help="Show a byte breakdown of the system prompt + tool schemas",
+        help="Показать разбивку системного промпта и схем инструментов по байтам",
         description=(
-            "Report the fixed prompt budget for a fresh session: system "
-            "prompt total, skills index, memory, user profile, and tool-schema "
-            "JSON. Runs offline (no API call)."
+            "Показывает фиксированный бюджет промпта для новой сессии: весь "
+            "системный промпт, индекс навыков, память, профиль пользователя и "
+            "JSON-схемы инструментов. Работает офлайн (без API-вызова)."
         ),
     )
     prompt_size_parser.add_argument(
         "--platform",
         default="cli",
-        help="Platform to simulate (cli, telegram, discord, ...). Default: cli",
+        help="Платформа для симуляции (cli, telegram, discord, ...). По умолчанию: cli",
     )
     prompt_size_parser.add_argument(
         "--json",
         action="store_true",
-        help="Emit the breakdown as JSON",
+        help="Вывести разбивку в JSON",
     )
     prompt_size_parser.set_defaults(func=cmd_prompt_size)

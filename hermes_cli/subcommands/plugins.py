@@ -13,82 +13,82 @@ def build_plugins_parser(subparsers, *, cmd_plugins: Callable) -> None:
     """Attach the ``plugins`` subcommand to ``subparsers``."""
     plugins_parser = subparsers.add_parser(
         "plugins",
-        help="Manage plugins — install, update, remove, list",
-        description="Install plugins from Git repositories, update, remove, or list them.",
+        help="Управление плагинами: установка, обновление, удаление, список",
+        description="Установка плагинов из Git-репозиториев, обновление, удаление и просмотр.",
     )
     plugins_subparsers = plugins_parser.add_subparsers(dest="plugins_action")
 
     plugins_install = plugins_subparsers.add_parser(
-        "install", help="Install a plugin from a Git URL or owner/repo"
+        "install", help="Установить плагин из Git URL или owner/repo"
     )
     plugins_install.add_argument(
         "identifier",
-        help="Git URL or owner/repo shorthand (e.g. anpicasso/hermes-plugin-chrome-profiles)",
+        help="Git URL или короткая форма owner/repo (например anpicasso/hermes-plugin-chrome-profiles)",
     )
     plugins_install.add_argument(
         "--force",
         "-f",
         action="store_true",
-        help="Remove existing plugin and reinstall",
+        help="Удалить существующий плагин и установить заново",
     )
     _install_enable_group = plugins_install.add_mutually_exclusive_group()
     _install_enable_group.add_argument(
         "--enable",
         action="store_true",
-        help="Auto-enable the plugin after install (skip confirmation prompt)",
+        help="Автоматически включить плагин после установки (без подтверждения)",
     )
     _install_enable_group.add_argument(
         "--no-enable",
         action="store_true",
-        help="Install disabled (skip confirmation prompt); enable later with `hermes plugins enable <name>`",
+        help="Установить отключенным (без подтверждения); включить позже через `hermes plugins enable <name>`",
     )
 
     plugins_update = plugins_subparsers.add_parser(
-        "update", help="Pull latest changes for an installed plugin"
+        "update", help="Скачать последние изменения установленного плагина"
     )
-    plugins_update.add_argument("name", help="Plugin name to update")
+    plugins_update.add_argument("name", help="Имя плагина для обновления")
 
     plugins_remove = plugins_subparsers.add_parser(
-        "remove", aliases=["rm", "uninstall"], help="Remove an installed plugin"
+        "remove", aliases=["rm", "uninstall"], help="Удалить установленный плагин"
     )
-    plugins_remove.add_argument("name", help="Plugin directory name to remove")
+    plugins_remove.add_argument("name", help="Имя папки плагина для удаления")
 
     plugins_list = plugins_subparsers.add_parser(
-        "list", aliases=["ls"], help="List installed plugins"
+        "list", aliases=["ls"], help="Показать установленные плагины"
     )
     plugins_list.add_argument(
         "--enabled",
         action="store_true",
-        help="Show only enabled plugins",
+        help="Показать только включенные плагины",
     )
     plugins_list.add_argument(
         "--user",
         action="store_true",
-        help="Show only user-installed plugins (including git plugins)",
+        help="Показать только пользовательские плагины (включая git-плагины)",
     )
     plugins_list.add_argument(
         "--no-bundled",
         action="store_true",
-        help="Hide bundled plugins",
+        help="Скрыть встроенные плагины",
     )
     plugins_list.add_argument(
         "--plain",
         action="store_true",
-        help="Print compact plain-text output instead of a Rich table",
+        help="Вывести компактный plain-text вместо Rich-таблицы",
     )
     plugins_list.add_argument(
         "--json",
         action="store_true",
-        help="Print machine-readable JSON",
+        help="Вывести машинно-читаемый JSON",
     )
 
     plugins_enable = plugins_subparsers.add_parser(
-        "enable", help="Enable a disabled plugin"
+        "enable", help="Включить отключенный плагин"
     )
-    plugins_enable.add_argument("name", help="Plugin name to enable")
+    plugins_enable.add_argument("name", help="Имя плагина для включения")
 
     plugins_disable = plugins_subparsers.add_parser(
-        "disable", help="Disable a plugin without removing it"
+        "disable", help="Отключить плагин без удаления"
     )
-    plugins_disable.add_argument("name", help="Plugin name to disable")
+    plugins_disable.add_argument("name", help="Имя плагина для отключения")
     plugins_parser.set_defaults(func=cmd_plugins)

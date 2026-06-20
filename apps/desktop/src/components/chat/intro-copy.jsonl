@@ -1,13 +1,13 @@
-{"personality":"helpful","headline":"Ready when you are","body":"Ask me to open a repo, run tests, fix a bug, or draft a PR. I'll walk through the steps with you."}
-{"personality":"helpful","headline":"How can I help today?","body":"Point me at a file, paste an error, or describe what you're building. I'll take it from there."}
-{"personality":"helpful","headline":"Let's get started","body":"Try: review my diff, run the test suite, or explain this function. Ask anything about your code."}
-{"personality":"helpful","headline":"Tell me what you need","body":"I can edit files, run commands, search the web, and walk you through tricky bugs. Just describe the task."}
-{"personality":"helpful","headline":"Hi, Hermes here","body":"Share a repo path or a question to start. I keep replies clear and link back to the files I touch."}
-{"personality":"concise","headline":"Ready.","body":"Describe the task. I'll do it."}
-{"personality":"concise","headline":"Waiting for input","body":"Paste code, errors, or a goal. Short answers, fast edits."}
-{"personality":"concise","headline":"Go.","body":"Ask. I'll read files, run tests, ship patches. No filler."}
-{"personality":"concise","headline":"Standing by","body":"One line is enough. I'll expand only when it matters."}
-{"personality":"concise","headline":"Your move","body":"Command, question, or file path. I handle the rest."}
+{"personality":"helpful","headline":"Готов, когда вы готовы","body":"Попросите открыть репозиторий, запустить тесты, исправить ошибку или подготовить PR. Я проведу задачу по шагам."}
+{"personality":"helpful","headline":"Чем помочь сегодня?","body":"Укажите файл, вставьте ошибку или опишите, что вы строите. Я разберусь дальше."}
+{"personality":"helpful","headline":"Начнем","body":"Попробуйте: проверь мой diff, запусти тесты или объясни эту функцию. Можно спрашивать о коде что угодно."}
+{"personality":"helpful","headline":"Напишите, что нужно","body":"Я могу редактировать файлы, запускать команды, искать в сети и разбирать сложные ошибки. Просто опишите задачу."}
+{"personality":"helpful","headline":"Привет, я Hermes","body":"Дайте путь к репозиторию или вопрос для старта. Я отвечаю ясно и ссылаюсь на файлы, которые меняю."}
+{"personality":"concise","headline":"Готов.","body":"Опишите задачу. Я сделаю."}
+{"personality":"concise","headline":"Жду ввод","body":"Вставьте код, ошибку или цель. Короткие ответы, быстрые правки."}
+{"personality":"concise","headline":"Поехали.","body":"Спрашивайте. Я читаю файлы, запускаю тесты, готовлю патчи. Без лишнего."}
+{"personality":"concise","headline":"На связи","body":"Достаточно одной строки. Разверну ответ только там, где это важно."}
+{"personality":"concise","headline":"Ваш ход","body":"Команда, вопрос или путь к файлу. Остальное беру на себя."}
 {"personality":"technical","headline":"Shell mounted. Awaiting input.","body":"Provide repo path, failing test, or stack trace. Tools: fs, git, exec, search, patch, http."}
 {"personality":"technical","headline":"Agent loop idle","body":"Send a prompt to trigger tool calls. Supports multi-file edits, test runs, git ops, and web fetches."}
 {"personality":"technical","headline":"Ready for dispatch","body":"Enter task. I will plan, call tools, verify output. Logs stream inline; diffs returned pre-apply."}
@@ -68,8 +68,8 @@
 {"personality":"hype","headline":"New session, infinite W's","body":"Bring the gnarliest bug you've got. I'll read, patch, test, commit like my life depends on it. LET'S GO."}
 {"personality":"hype","headline":"ABSOLUTELY DIALED IN","body":"Describe the task. I'll blitz through files, crush failing tests, and leave a commit that SLAPS. Go go go."}
 {"personality":"hype","headline":"Ready. So ready. Too ready.","body":"Tiny typo or huge refactor - doesn't matter. I'm shipping clean code today. Name the task and let's WORK."}
-{"personality":"none","headline":"Hermes Agent is ready.","body":"Ask a question, paste an error, or point me at a repo. I can read code, run tools, and help you ship."}
-{"personality":"none","headline":"What are we building today?","body":"Describe the task in your own words. I'll pick the right tools, explain my plan, and check in before risky steps."}
-{"personality":"none","headline":"Start anywhere.","body":"Drop a file path, a traceback, or a rough idea. I'll investigate, suggest next steps, and keep things reversible."}
-{"personality":"none","headline":"Your workspace, one prompt away.","body":"Search the repo, edit files, run tests, open PRs. Tell me the goal and I'll handle the mechanical parts."}
-{"personality":"none","headline":"Ready when you are.","body":"Type a task, question, or snippet. I remember the session, cite my sources, and stop to ask when I'm unsure."}
+{"personality":"none","headline":"Hermes RU Iola готов.","body":"Задайте вопрос, вставьте ошибку или укажите репозиторий. Я читаю код, запускаю инструменты и помогаю довести до результата."}
+{"personality":"none","headline":"Что строим сегодня?","body":"Опишите задачу своими словами. Я выберу инструменты, объясню план и остановлюсь перед рискованными шагами."}
+{"personality":"none","headline":"Начните с любого места.","body":"Дайте путь к файлу, traceback или грубую идею. Я исследую, предложу шаги и сохраню возможность отката."}
+{"personality":"none","headline":"Рабочая среда в одном сообщении.","body":"Поиск по репозиторию, правка файлов, тесты, PR. Скажите цель, и я возьму механику на себя."}
+{"personality":"none","headline":"Готов, когда вы готовы.","body":"Введите задачу, вопрос или фрагмент. Я помню сессию, ссылаюсь на источники и спрашиваю, когда не уверен."}

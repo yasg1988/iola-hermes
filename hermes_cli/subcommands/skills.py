@@ -13,19 +13,19 @@ def build_skills_parser(subparsers, *, cmd_skills: Callable) -> None:
     """Attach the ``skills`` subcommand to ``subparsers``."""
     skills_parser = subparsers.add_parser(
         "skills",
-        help="Search, install, configure, and manage skills",
-        description="Search, install, inspect, audit, configure, and manage skills from skills.sh, well-known agent skill endpoints, GitHub, ClawHub, and other registries.",
+        help="Поиск, установка, настройка и управление навыками",
+        description="Поиск, установка, просмотр, аудит, настройка и управление навыками из skills.sh, well-known agent skill endpoints, GitHub, ClawHub и других реестров.",
     )
     skills_subparsers = skills_parser.add_subparsers(dest="skills_action")
 
     skills_browse = skills_subparsers.add_parser(
-        "browse", help="Browse all available skills (paginated)"
+        "browse", help="Просмотреть все доступные навыки (постранично)"
     )
     skills_browse.add_argument(
-        "--page", type=int, default=1, help="Page number (default: 1)"
+        "--page", type=int, default=1, help="Номер страницы (по умолчанию: 1)"
     )
     skills_browse.add_argument(
-        "--size", type=int, default=20, help="Results per page (default: 20)"
+        "--size", type=int, default=20, help="Результатов на страницу (по умолчанию: 20)"
     )
     skills_browse.add_argument(
         "--source",
@@ -40,13 +40,13 @@ def build_skills_parser(subparsers, *, cmd_skills: Callable) -> None:
             "lobehub",
             "browse-sh",
         ],
-        help="Filter by source (default: all)",
+        help="Фильтр по источнику (по умолчанию: all)",
     )
 
     skills_search = skills_subparsers.add_parser(
-        "search", help="Search skill registries"
+        "search", help="Искать в реестрах навыков"
     )
-    skills_search.add_argument("query", help="Search query")
+    skills_search.add_argument("query", help="Поисковый запрос")
     skills_search.add_argument(
         "--source",
         default="all",
@@ -61,238 +61,240 @@ def build_skills_parser(subparsers, *, cmd_skills: Callable) -> None:
             "browse-sh",
         ],
     )
-    skills_search.add_argument("--limit", type=int, default=10, help="Max results")
+    skills_search.add_argument("--limit", type=int, default=10, help="Максимум результатов")
     skills_search.add_argument(
         "--json",
         action="store_true",
-        help="Output JSON instead of a table (full identifiers, scripting-friendly)",
+        help="Вывести JSON вместо таблицы (полные идентификаторы, удобно для скриптов)",
     )
 
-    skills_install = skills_subparsers.add_parser("install", help="Install a skill")
+    skills_install = skills_subparsers.add_parser("install", help="Установить навык")
     skills_install.add_argument(
         "identifier",
-        help="Skill identifier (e.g. openai/skills/skill-creator) or a direct HTTP(S) URL to a SKILL.md file",
+        help="Идентификатор навыка (например openai/skills/skill-creator) или прямой HTTP(S) URL к SKILL.md",
     )
     skills_install.add_argument(
-        "--category", default="", help="Category folder to install into"
+        "--category", default="", help="Папка категории для установки"
     )
     skills_install.add_argument(
         "--name",
         default="",
-        help="Override the skill name (useful when installing from a URL whose SKILL.md has no `name:` frontmatter)",
+        help="Переопределить имя навыка (полезно при установке из URL, где SKILL.md без frontmatter `name:`)",
     )
     skills_install.add_argument(
-        "--force", action="store_true", help="Install despite blocked scan verdict"
+        "--force", action="store_true", help="Установить несмотря на блокирующий verdict сканирования"
     )
     skills_install.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="Skip confirmation prompt (needed in TUI mode)",
+        help="Пропустить подтверждение (нужно в TUI-режиме)",
     )
 
     skills_inspect = skills_subparsers.add_parser(
-        "inspect", help="Preview a skill without installing"
+        "inspect", help="Просмотреть навык без установки"
     )
-    skills_inspect.add_argument("identifier", help="Skill identifier")
+    skills_inspect.add_argument("identifier", help="Идентификатор навыка")
 
-    skills_list = skills_subparsers.add_parser("list", help="List installed skills")
+    skills_list = skills_subparsers.add_parser("list", help="Показать установленные навыки")
     skills_list.add_argument(
         "--source", default="all", choices=["all", "hub", "builtin", "local"]
     )
     skills_list.add_argument(
         "--enabled-only",
         action="store_true",
-        help="Hide disabled skills. Use with -p <profile> to see exactly "
-        "which skills will load for that profile.",
+        help="Скрыть отключенные навыки. Используйте с -p <profile>, чтобы увидеть, "
+        "какие навыки загрузятся для профиля.",
     )
 
     skills_check = skills_subparsers.add_parser(
-        "check", help="Check installed hub skills for updates"
+        "check", help="Проверить обновления установленных hub-навыков"
     )
     skills_check.add_argument(
-        "name", nargs="?", help="Specific skill to check (default: all)"
+        "name", nargs="?", help="Конкретный навык для проверки (по умолчанию: все)"
     )
 
     skills_update = skills_subparsers.add_parser(
-        "update", help="Update installed hub skills"
+        "update", help="Обновить установленные hub-навыки"
     )
     skills_update.add_argument(
         "name",
         nargs="?",
-        help="Specific skill to update (default: all outdated skills)",
+        help="Конкретный навык для обновления (по умолчанию: все устаревшие)",
     )
 
     skills_audit = skills_subparsers.add_parser(
-        "audit", help="Re-scan installed hub skills"
+        "audit", help="Повторно просканировать установленные hub-навыки"
     )
     skills_audit.add_argument(
-        "name", nargs="?", help="Specific skill to audit (default: all)"
+        "name", nargs="?", help="Конкретный навык для аудита (по умолчанию: все)"
     )
     skills_audit.add_argument(
         "--deep",
         action="store_true",
-        help="Run AST-level analysis on Python files (opt-in diagnostic)",
+        help="Запустить AST-анализ Python-файлов (опциональная диагностика)",
     )
 
     skills_uninstall = skills_subparsers.add_parser(
-        "uninstall", help="Remove a hub-installed skill"
+        "uninstall", help="Удалить hub-навык"
     )
-    skills_uninstall.add_argument("name", help="Skill name to remove")
+    skills_uninstall.add_argument("name", help="Имя навыка для удаления")
 
     skills_reset = skills_subparsers.add_parser(
         "reset",
-        help="Reset a bundled skill — clears 'user-modified' tracking so updates work again",
+        help="Сбросить встроенный навык: очистить tracking 'user-modified', чтобы обновления снова работали",
         description=(
-            "Clear a bundled skill's entry from the sync manifest (~/.hermes/skills/.bundled_manifest) "
-            "so future 'hermes update' runs stop marking it as user-modified. Pass --restore to also "
-            "replace the current copy with the bundled version."
+            "Очистить запись встроенного навыка из sync manifest (~/.hermes/skills/.bundled_manifest), "
+            "чтобы будущие запуски 'hermes update' перестали считать его user-modified. Передайте --restore, "
+            "чтобы также заменить текущую копию встроенной версией."
         ),
     )
     skills_reset.add_argument(
-        "name", help="Skill name to reset (e.g. google-workspace)"
+        "name", help="Имя навыка для сброса (например google-workspace)"
     )
     skills_reset.add_argument(
         "--restore",
         action="store_true",
-        help="Also delete the current copy and re-copy the bundled version",
+        help="Также удалить текущую копию и заново скопировать встроенную версию",
     )
     skills_reset.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="Skip confirmation prompt when using --restore",
+        help="Пропустить подтверждение при использовании --restore",
     )
 
     skills_list_modified = skills_subparsers.add_parser(
         "list-modified",
-        help="List bundled skills you've edited (which `hermes update` keeps)",
+        help="Показать измененные вами встроенные навыки (которые `hermes update` сохраняет)",
         description=(
-            "Show the bundled skills whose local copy differs from the version last "
-            "synced, i.e. the ones `hermes update` reports as user-modified and skips. "
-            "Use `hermes skills diff <name>` to see changes and `hermes skills reset "
-            "<name>` to resume updates."
+            "Показать встроенные навыки, локальная копия которых отличается от последней "
+            "синхронизированной версии, то есть те, которые `hermes update` помечает как "
+            "user-modified и пропускает. Используйте `hermes skills diff <name>` для просмотра "
+            "изменений и `hermes skills reset <name>`, чтобы вернуть обновления."
         ),
     )
     skills_list_modified.add_argument(
         "--json",
         action="store_true",
-        help="Output the list as JSON",
+        help="Вывести список в JSON",
     )
 
     skills_diff = skills_subparsers.add_parser(
         "diff",
-        help="Show how your copy of a bundled skill differs from the stock version",
+        help="Показать отличия вашей копии встроенного навыка от штатной версии",
         description=(
-            "Print a unified diff between your local copy of a bundled skill and the "
-            "current bundled (stock) version, so you can confirm what changed before "
-            "running `hermes skills reset`."
+            "Вывести unified diff между вашей локальной копией встроенного навыка и "
+            "текущей штатной версией, чтобы проверить изменения перед запуском "
+            "`hermes skills reset`."
         ),
     )
     skills_diff.add_argument(
-        "name", help="Skill name to diff (e.g. google-workspace)"
+        "name", help="Имя навыка для diff (например google-workspace)"
     )
 
     skills_opt_out = skills_subparsers.add_parser(
         "opt-out",
-        help="Stop bundled skills from being seeded into this profile",
+        help="Отключить добавление встроенных навыков в этот профиль",
         description=(
-            "Write the .no-bundled-skills marker so the installer, "
-            "`hermes update`, and any direct sync stop seeding bundled skills "
-            "into the active profile. By default nothing already on disk is "
-            "touched. Pass --remove to ALSO delete bundled skills that are "
-            "unmodified (user-edited and hub/local skills are never removed)."
+            "Записать маркер .no-bundled-skills, чтобы installer, `hermes update` "
+            "и прямой sync перестали добавлять встроенные навыки в активный профиль. "
+            "По умолчанию уже существующие файлы не трогаются. Передайте --remove, "
+            "чтобы также удалить неизмененные встроенные навыки (пользовательские "
+            "правки и hub/local навыки никогда не удаляются)."
         ),
     )
     skills_opt_out.add_argument(
         "--remove",
         action="store_true",
-        help="Also delete already-present unmodified bundled skills",
+        help="Также удалить уже имеющиеся неизмененные встроенные навыки",
     )
     skills_opt_out.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="Skip confirmation prompt when using --remove",
+        help="Пропустить подтверждение при использовании --remove",
     )
 
     skills_opt_in = skills_subparsers.add_parser(
         "opt-in",
-        help="Re-enable bundled-skill seeding (undo opt-out)",
+        help="Снова включить добавление встроенных навыков (отменить opt-out)",
         description=(
-            "Remove the .no-bundled-skills marker so bundled skills are seeded "
-            "again on the next `hermes update`. Pass --sync to re-seed now."
+            "Удалить маркер .no-bundled-skills, чтобы встроенные навыки снова "
+            "добавлялись при следующем `hermes update`. Передайте --sync, чтобы "
+            "добавить их сразу."
         ),
     )
     skills_opt_in.add_argument(
         "--sync",
         action="store_true",
-        help="Re-seed bundled skills immediately instead of waiting for update",
+        help="Сразу заново добавить встроенные навыки, не дожидаясь update",
     )
 
     skills_repair_official = skills_subparsers.add_parser(
         "repair-official",
-        help="Backfill or restore official optional skills from repo source",
+        help="Дозаполнить или восстановить официальные optional-навыки из исходников репозитория",
         description=(
-            "Repair official optional skill provenance. By default, only backfills "
-            "hub metadata for exact matches. Pass --restore to replace missing or "
-            "mutated active copies from optional-skills/, moving existing copies to "
-            "a restore backup first. Use name 'all' to repair every optional skill."
+            "Исправить provenance официальных optional-навыков. По умолчанию только "
+            "дозаполняет hub metadata для точных совпадений. Передайте --restore, "
+            "чтобы заменить отсутствующие или измененные активные копии из optional-skills/, "
+            "предварительно переместив существующие копии в backup восстановления. "
+            "Используйте имя 'all' для восстановления всех optional-навыков."
         ),
     )
     skills_repair_official.add_argument(
-        "name", help="Official optional skill folder/frontmatter name, or 'all'"
+        "name", help="Папка/frontmatter name официального optional-навыка или 'all'"
     )
     skills_repair_official.add_argument(
         "--restore",
         action="store_true",
-        help="Restore from official optional source, backing up existing matching copies",
+        help="Восстановить из официального optional-источника с backup существующих совпадающих копий",
     )
     skills_repair_official.add_argument(
         "--yes",
         "-y",
         action="store_true",
-        help="Skip confirmation prompt when using --restore",
+        help="Пропустить подтверждение при использовании --restore",
     )
 
     skills_publish = skills_subparsers.add_parser(
-        "publish", help="Publish a skill to a registry"
+        "publish", help="Опубликовать навык в реестр"
     )
-    skills_publish.add_argument("skill_path", help="Path to skill directory")
+    skills_publish.add_argument("skill_path", help="Путь к папке навыка")
     skills_publish.add_argument(
-        "--to", default="github", choices=["github", "clawhub"], help="Target registry"
+        "--to", default="github", choices=["github", "clawhub"], help="Целевой реестр"
     )
     skills_publish.add_argument(
-        "--repo", default="", help="Target GitHub repo (e.g. openai/skills)"
+        "--repo", default="", help="Целевой GitHub repo (например openai/skills)"
     )
 
     skills_snapshot = skills_subparsers.add_parser(
-        "snapshot", help="Export/import skill configurations"
+        "snapshot", help="Экспорт/импорт конфигураций навыков"
     )
     snapshot_subparsers = skills_snapshot.add_subparsers(dest="snapshot_action")
     snap_export = snapshot_subparsers.add_parser(
-        "export", help="Export installed skills to a file"
+        "export", help="Экспортировать установленные навыки в файл"
     )
-    snap_export.add_argument("output", help="Output JSON file path (use - for stdout)")
+    snap_export.add_argument("output", help="Путь к выходному JSON-файлу (используйте - для stdout)")
     snap_import = snapshot_subparsers.add_parser(
-        "import", help="Import and install skills from a file"
+        "import", help="Импортировать и установить навыки из файла"
     )
-    snap_import.add_argument("input", help="Input JSON file path")
+    snap_import.add_argument("input", help="Путь к входному JSON-файлу")
     snap_import.add_argument(
-        "--force", action="store_true", help="Force install despite caution verdict"
+        "--force", action="store_true", help="Принудительно установить несмотря на caution verdict"
     )
 
-    skills_tap = skills_subparsers.add_parser("tap", help="Manage skill sources")
+    skills_tap = skills_subparsers.add_parser("tap", help="Управление источниками навыков")
     tap_subparsers = skills_tap.add_subparsers(dest="tap_action")
-    tap_subparsers.add_parser("list", help="List configured taps")
-    tap_add = tap_subparsers.add_parser("add", help="Add a GitHub repo as skill source")
-    tap_add.add_argument("repo", help="GitHub repo (e.g. owner/repo)")
-    tap_rm = tap_subparsers.add_parser("remove", help="Remove a tap")
-    tap_rm.add_argument("name", help="Tap name to remove")
+    tap_subparsers.add_parser("list", help="Показать настроенные taps")
+    tap_add = tap_subparsers.add_parser("add", help="Добавить GitHub repo как источник навыков")
+    tap_add.add_argument("repo", help="GitHub repo (например owner/repo)")
+    tap_rm = tap_subparsers.add_parser("remove", help="Удалить tap")
+    tap_rm.add_argument("name", help="Имя tap для удаления")
 
     # config sub-action: interactive enable/disable
     skills_subparsers.add_parser(
         "config",
-        help="Interactive skill configuration — enable/disable individual skills",
+        help="Интерактивная настройка навыков: включение/отключение отдельных навыков",
     )
     skills_parser.set_defaults(func=cmd_skills)

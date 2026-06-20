@@ -1,95 +1,82 @@
-# Hermes Desktop ☤
+# Hermes RU Iola Desktop
 
-<p align="center">
-  <a href="https://github.com/NousResearch/hermes-agent/releases"><img src="https://img.shields.io/badge/Download-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-FFD700?style=for-the-badge" alt="Download"></a>
-  <a href="https://hermes-agent.nousresearch.com/docs/"><img src="https://img.shields.io/badge/Docs-hermes--agent.nousresearch.com-FFD700?style=for-the-badge" alt="Documentation"></a>
-  <a href="https://discord.gg/NousResearch"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
-  <a href="https://github.com/NousResearch/hermes-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
-</p>
+Нативное desktop-приложение для [Hermes RU Iola](../../README.md): тот же агент, навыки, память и история, что в CLI и gateway, но в отдельном окне без обязательного терминала. Поддерживаются **Windows, Linux и macOS**.
 
-**The native desktop app for [Hermes Agent](../../README.md) — the self-improving AI agent from [Nous Research](https://nousresearch.com).** Same agent, same skills, same memory as the CLI and gateway, in a polished native window — chat with streaming tool output, side-by-side previews, a file browser, voice, and settings, no terminal required. Available for **macOS, Windows, and Linux**.
+## Возможности
 
-<table>
-<tr><td><b>Chat with the full agent</b></td><td>Streaming responses, live tool activity, structured tool summaries, and the same conversation history as every other Hermes surface.</td></tr>
-<tr><td><b>Side-by-side previews</b></td><td>Render web pages, files, and tool outputs in a right-hand pane while you keep chatting.</td></tr>
-<tr><td><b>File browser</b></td><td>Explore and preview the working directory without leaving the app.</td></tr>
-<tr><td><b>Voice</b></td><td>Talk to Hermes and hear it back.</td></tr>
-<tr><td><b>Settings & onboarding</b></td><td>Manage providers, models, tools, and credentials from a real UI. First-run setup gets you to your first message in seconds.</td></tr>
-<tr><td><b>Stays current</b></td><td>Built-in updates pull the latest agent and rebuild the app in place.</td></tr>
-</table>
+| Раздел | Что дает |
+|---|---|
+| Полный агент в чате | Потоковые ответы, live-активность инструментов, структурированные summaries и общая история с другими интерфейсами Hermes. |
+| Превью рядом с чатом | Web-страницы, файлы и вывод инструментов открываются в правой панели. |
+| Файловый браузер | Просмотр рабочей папки без выхода из приложения. |
+| Голос | Можно говорить с Hermes и получать голосовой ответ. |
+| Настройки и onboarding | Провайдеры, модели, инструменты и учетные данные настраиваются через UI. |
+| Обновления | Встроенное обновление подтягивает свежую версию агента и пересобирает приложение на месте. |
 
----
+## Установка
 
-## Install
+### Через Hermes CLI
 
-### Install with Hermes (recommended)
-
-Already have the Hermes CLI? Just run:
+Если CLI уже установлен:
 
 ```bash
 hermes desktop
 ```
 
-It builds and launches the GUI against your existing install — same config, keys, sessions, and skills. On first launch Hermes walks you through picking a provider and model; nothing else to configure.
+Команда соберет и запустит GUI поверх текущей установки: та же конфигурация, ключи, сессии и навыки. При первом запуске Hermes поможет выбрать провайдера и модель.
 
-### Prebuilt installers
+### Готовые installers
 
-Prebuilt installers are built and distributed via [the Hermes Desktop website.](https://hermes-agent.nousresearch.com/).
+Для публичного релиза Hermes RU Iola installers будут публиковаться в GitHub Releases проекта `yasg1988/iola-hermes`.
 
----
+## Обновление
 
-## Updating
-
-The app checks for updates in the background and offers a one-click update when one is ready. You can also update any time from the CLI:
+Приложение проверяет обновления в фоне и предлагает обновиться в один клик. Из CLI можно обновиться вручную:
 
 ```bash
 hermes update
 ```
 
----
+## Требования
 
-## Requirements
+Installer должен подготовить все нужное: Python 3.11+, portable Git, ripgrep и runtime-зависимости.
 
-The installer handles everything for you (Python 3.11+, a portable Git, ripgrep).
+## Разработка
 
----
-
-## Development
-
-Want to hack on the app itself? Install workspace deps from the repo root once, then run the dev server from this directory:
+Один раз установите workspace-зависимости из корня репозитория, затем запускайте dev server из этой папки:
 
 ```bash
-npm install          # from repo root — links apps/desktop, web, apps/shared
+npm install
 cd apps/desktop
-npm run dev          # Vite renderer + Electron, which boots the Python backend
+npm run dev
 ```
 
-Point the app at a specific source checkout, or sandbox it away from your real config:
+Можно указать конкретный checkout исходников или изолировать тестовую конфигурацию:
 
 ```bash
 HERMES_DESKTOP_HERMES_ROOT=/path/to/clone npm run dev
 HERMES_HOME=/tmp/throwaway npm run dev
-npm run dev:fake-boot   # exercise the startup overlay with deterministic delays
+npm run dev:fake-boot
 ```
 
-### Building installers
+## Сборка installers
 
 ```bash
 npm run dist:mac     # DMG + zip
 npm run dist:win     # NSIS + MSI
 npm run dist:linux   # AppImage + deb + rpm
-npm run pack         # unpacked app under release/ (no installer)
+npm run pack         # unpacked app в release/
 ```
 
-Installers are built and uploaded to GitHub Releases manually. macOS/Windows signing & notarization happen automatically when the relevant credentials are present in the environment (`CSC_LINK` / `CSC_KEY_PASSWORD` / `APPLE_*` for macOS, `WIN_CSC_*` for Windows).
+Installers собираются и загружаются в GitHub Releases вручную. Подпись macOS/Windows включается автоматически, если в окружении есть нужные credentials (`CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_*`, `WIN_CSC_*`).
 
-### How it works
+## Как это устроено
 
-The packaged app ships only the Electron shell. On first launch it installs the Hermes Agent runtime into `HERMES_HOME` (`~/.hermes`, or `%LOCALAPPDATA%\hermes` on Windows) — the **same layout a CLI install uses**, so the two are interchangeable. The renderer (React, in `src/`) talks to a `hermes dashboard` backend over the standard gateway APIs and reuses the embedded TUI rather than reimplementing chat. The install, backend-resolution, and self-update logic all live in `electron/main.cjs`.
+Packaged app содержит Electron shell. При первом запуске он устанавливает runtime Hermes в `HERMES_HOME` (`~/.hermes`, на Windows `%LOCALAPPDATA%\hermes`) с тем же layout, что у CLI-установки. Renderer на React общается с backend `hermes dashboard` через стандартные gateway API и переиспользует embedded TUI вместо отдельной реализации чата. Логика установки, поиска backend и self-update находится в `electron/main.cjs`.
 
-### Verification
+## Проверка
 
-Run before opening a PR (lint may surface pre-existing warnings but must exit cleanly):
+Перед PR:
 
 ```bash
 npm run fix
@@ -98,44 +85,27 @@ npm run lint
 npm run test:desktop:all
 ```
 
-### Troubleshooting
+## Диагностика
 
-Boot logs land in `HERMES_HOME/logs/desktop.log` (includes backend output and recent Python tracebacks) — check it first if the app reports a boot failure.
+Логи старта пишутся в `HERMES_HOME/logs/desktop.log`. Смотрите этот файл первым, если приложение сообщает об ошибке запуска.
 
 **macOS / Linux:**
 
 ```bash
-# Force a clean first-launch setup
 rm "$HOME/.hermes/hermes-agent/.hermes-bootstrap-complete"
-# Rebuild a broken Python venv
 rm -rf "$HOME/.hermes/hermes-agent/venv"
-# Reset a stuck macOS microphone prompt (macOS only)
 tccutil reset Microphone com.nousresearch.hermes
 ```
 
-**Windows (PowerShell):**
+**Windows PowerShell:**
 
 ```powershell
-# Force a clean first-launch setup
 Remove-Item "$env:LOCALAPPDATA\hermes\hermes-agent\.hermes-bootstrap-complete"
-# Rebuild a broken Python venv
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\hermes\hermes-agent\venv"
 ```
 
-> The default Hermes home on Windows is `%LOCALAPPDATA%\hermes`. Set the `HERMES_HOME` env var if you've relocated it.
+По умолчанию Hermes home на Windows: `%LOCALAPPDATA%\hermes`. Если путь перенесен, задайте `HERMES_HOME`.
 
----
+## Лицензия
 
-## Community
-
-- 💬 [Discord](https://discord.gg/NousResearch)
-- 📖 [Documentation](https://hermes-agent.nousresearch.com/docs/)
-- 🐛 [Issues](https://github.com/NousResearch/hermes-agent/issues)
-
----
-
-## License
-
-MIT — see [LICENSE](../../LICENSE).
-
-Built by [Nous Research](https://nousresearch.com).
+MIT, см. [LICENSE](../../LICENSE).

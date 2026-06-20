@@ -11648,11 +11648,11 @@ def main():
 
     fallback_parser = subparsers.add_parser(
         "fallback",
-        help="Manage fallback providers (tried when the primary model fails)",
+        help="Управление fallback-провайдерами (если основная модель недоступна)",
         description=(
-            "Manage the fallback provider chain.  Fallback providers are tried "
-            "in order when the primary model fails with rate-limit, overload, or "
-            "connection errors.  See: "
+            "Управление цепочкой fallback-провайдеров. Провайдеры пробуются "
+            "по порядку, когда основная модель падает из-за rate-limit, перегрузки "
+            "или сетевых ошибок. См.: "
             "https://hermes-agent.nousresearch.com/docs/user-guide/features/fallback-providers"
         ),
     )
@@ -11660,20 +11660,20 @@ def main():
     fallback_subparsers.add_parser(
         "list",
         aliases=["ls"],
-        help="Show the current fallback chain (default when no subcommand)",
+        help="Показать текущую fallback-цепочку (по умолчанию без подкоманды)",
     )
     fallback_subparsers.add_parser(
         "add",
-        help="Pick a provider + model (same picker as `hermes model`) and append to the chain",
+        help="Выбрать провайдера и модель (как в `hermes model`) и добавить в цепочку",
     )
     fallback_subparsers.add_parser(
         "remove",
         aliases=["rm"],
-        help="Pick an entry to delete from the chain",
+        help="Выбрать запись для удаления из цепочки",
     )
     fallback_subparsers.add_parser(
         "clear",
-        help="Remove all fallback entries",
+        help="Удалить все fallback-записи",
     )
     fallback_parser.set_defaults(func=cmd_fallback)
 
@@ -11682,11 +11682,11 @@ def main():
     # =========================================================================
     secrets_parser = subparsers.add_parser(
         "secrets",
-        help="Manage external secret sources (Bitwarden Secrets Manager)",
+        help="Управление внешними источниками secrets (Bitwarden Secrets Manager)",
         description=(
-            "Pull API keys from an external secret manager at process startup "
-            "instead of storing them in ~/.hermes/.env.  Currently supports "
-            "Bitwarden Secrets Manager.  See: "
+            "Загружать API-ключи из внешнего secret manager при старте процесса "
+            "вместо хранения в ~/.hermes/.env. Сейчас поддерживается "
+            "Bitwarden Secrets Manager. См.: "
             "https://hermes-agent.nousresearch.com/docs/user-guide/secrets/bitwarden"
         ),
     )
@@ -11695,7 +11695,7 @@ def main():
     secrets_bw = secrets_subparsers.add_parser(
         "bitwarden",
         aliases=["bw"],
-        help="Bitwarden Secrets Manager integration",
+        help="Интеграция Bitwarden Secrets Manager",
     )
 
     # Lazy import — only pays for itself when this subcommand is actually used.
@@ -11720,33 +11720,32 @@ def main():
 
     migrate_parser = subparsers.add_parser(
         "migrate",
-        help="Migrate configuration for retired models or deprecated settings",
+        help="Миграция конфигурации для устаревших моделей или настроек",
         description=(
-            "Diagnose and (optionally) rewrite the active config.yaml to "
-            "replace references to retired models or deprecated settings."
+            "Диагностировать и при необходимости переписать активный config.yaml, "
+            "заменив ссылки на выведенные модели или устаревшие настройки."
         ),
     )
     migrate_subparsers = migrate_parser.add_subparsers(dest="migrate_type")
 
     migrate_xai = migrate_subparsers.add_parser(
         "xai",
-        help="Migrate xAI models scheduled for retirement on May 15, 2026",
+        help="Мигрировать xAI-модели, выводимые из эксплуатации 15 мая 2026 года",
         description=(
-            "Scan config.yaml for references to xAI models retiring on "
-            "May 15, 2026 and, with --apply, rewrite them in-place to the "
-            "official replacements per the xAI migration guide. The original "
-            "config.yaml is backed up before any rewrite."
+            "Просканировать config.yaml на ссылки на xAI-модели, выводимые "
+            "15 мая 2026 года, и с --apply заменить их на официальные "
+            "варианты из migration guide xAI. Перед перезаписью создается backup."
         ),
     )
     migrate_xai.add_argument(
         "--apply",
         action="store_true",
-        help="Rewrite config.yaml in-place (default: dry-run, no writes)",
+        help="Переписать config.yaml на месте (по умолчанию dry-run без записи)",
     )
     migrate_xai.add_argument(
         "--no-backup",
         action="store_true",
-        help="Skip the timestamped backup of config.yaml when applying",
+        help="Пропустить backup config.yaml с timestamp при применении",
     )
     migrate_xai.set_defaults(func=cmd_migrate_xai)
     migrate_parser.set_defaults(func=cmd_migrate)
@@ -11789,12 +11788,11 @@ def main():
     # =========================================================================
     whatsapp_cloud_parser = subparsers.add_parser(
         "whatsapp-cloud",
-        help="Set up WhatsApp Business Cloud API integration",
+        help="Настроить интеграцию WhatsApp Business Cloud API",
         description=(
-            "Configure the official Meta WhatsApp Business Cloud API "
-            "adapter (Business account required, public webhook URL "
-            "required). Distinct from `hermes whatsapp` which sets up "
-            "the Baileys bridge for personal accounts."
+            "Настроить официальный адаптер Meta WhatsApp Business Cloud API "
+            "(нужен Business account и публичный webhook URL). Отличается от "
+            "`hermes whatsapp`, который настраивает Baileys bridge для личных аккаунтов."
         ),
     )
     whatsapp_cloud_parser.set_defaults(func=cmd_whatsapp_cloud)
@@ -11893,11 +11891,11 @@ def main():
     # =========================================================================
     checkpoints_parser = subparsers.add_parser(
         "checkpoints",
-        help="Inspect / prune / clear ~/.hermes/checkpoints/",
-        description="Manage the filesystem checkpoint store — the shadow git "
-        "repo hermes uses to snapshot working directories before "
-        "write_file/patch/terminal calls. Lets you see how much "
-        "space checkpoints occupy, force a prune, or wipe the base.",
+        help="Просмотр / prune / очистка ~/.hermes/checkpoints/",
+        description="Управление файловым хранилищем checkpoints: shadow git "
+        "repo, который Hermes использует для снимков рабочих папок перед "
+        "write_file/patch/terminal вызовами. Позволяет увидеть размер "
+        "checkpoints, принудительно выполнить prune или очистить базу.",
     )
     from hermes_cli.checkpoints import register_cli as _register_checkpoints_cli
     _register_checkpoints_cli(checkpoints_parser)
@@ -11927,11 +11925,11 @@ def main():
     # =========================================================================
     bundles_parser = subparsers.add_parser(
         "bundles",
-        help="Create, list, and manage skill bundles (aliases for multiple skills)",
+        help="Создание, просмотр и управление bundles навыков (alias для нескольких skills)",
         description=(
-            "Skill bundles let you load several skills under one slash "
-            "command. `/<bundle>` from the CLI or gateway loads every "
-            "referenced skill at once."
+            "Skill bundles позволяют загрузить несколько навыков одной slash-"
+            "командой. `/<bundle>` из CLI или gateway загружает все "
+            "связанные навыки сразу."
         ),
     )
     from hermes_cli.bundles import register_cli as _bundles_register, bundles_command
@@ -11993,13 +11991,13 @@ def main():
     # =========================================================================
     curator_parser = subparsers.add_parser(
         "curator",
-        help="Background skill maintenance (curator) — status, run, pause, pin",
+        help="Фоновое обслуживание навыков (curator): status, run, pause, pin",
         description=(
-            "The curator is an auxiliary-model background task that "
-            "periodically reviews agent-created skills, prunes stale ones, "
-            "consolidates overlaps, and archives obsolete skills. "
-            "Bundled and hub-installed skills are never touched. "
-            "Archives are recoverable; auto-deletion never happens."
+            "Curator — фоновая задача auxiliary-model, которая периодически "
+            "проверяет созданные агентом навыки, убирает устаревшие, "
+            "объединяет пересечения и архивирует obsolete skills. "
+            "Встроенные и hub-installed навыки не трогаются. "
+            "Архивы восстановимы; автоматического удаления не происходит."
         ),
     )
     try:
@@ -12024,36 +12022,35 @@ def main():
     # =========================================================================
     computer_use_parser = subparsers.add_parser(
         "computer-use",
-        help="Manage the Computer Use (cua-driver) backend (macOS)",
+        help="Управление backend Computer Use (cua-driver) на macOS",
         description=(
-            "Install or check the cua-driver binary used by the\n"
-            "`computer_use` toolset. macOS-only.\n\n"
-            "Use `hermes computer-use install` to fetch and run the\n"
-            "upstream cua-driver installer. This is equivalent to the\n"
-            "post-setup hook that `hermes tools` runs when you first\n"
-            "enable the Computer Use toolset, and is a stable target\n"
-            "for re-running the install if it didn't fire (e.g. when\n"
-            "toggling the toolset on a returning-user setup)."
+            "Установить или проверить бинарник cua-driver, используемый\n"
+            "набором инструментов `computer_use`. Только macOS.\n\n"
+            "Используйте `hermes computer-use install`, чтобы скачать и\n"
+            "запустить upstream installer cua-driver. Это эквивалент\n"
+            "post-setup hook, который `hermes tools` запускает при первом\n"
+            "включении Computer Use, и стабильная цель для повторной установки,\n"
+            "если hook не сработал."
         ),
     )
     computer_use_sub = computer_use_parser.add_subparsers(dest="computer_use_action")
 
     computer_use_install = computer_use_sub.add_parser(
         "install",
-        help="Install or repair the cua-driver binary (macOS)",
+        help="Установить или восстановить бинарник cua-driver (macOS)",
     )
     computer_use_install.add_argument(
         "--upgrade",
         action="store_true",
         help=(
-            "Re-run the upstream installer even if cua-driver is already on "
-            "PATH. The upstream install.sh always pulls the latest release, "
-            "so this performs an in-place upgrade."
+            "Повторно запустить upstream installer, даже если cua-driver уже в "
+            "PATH. Upstream install.sh всегда скачивает latest release, "
+            "так что это выполняет in-place upgrade."
         ),
     )
     computer_use_sub.add_parser(
         "status",
-        help="Print whether cua-driver is installed and on PATH",
+        help="Показать, установлен ли cua-driver и доступен ли в PATH",
     )
 
     def cmd_computer_use(args):
@@ -12098,91 +12095,91 @@ def main():
     # =========================================================================
     sessions_parser = subparsers.add_parser(
         "sessions",
-        help="Manage session history (list, rename, export, prune, delete)",
-        description="View and manage the SQLite session store",
+        help="Управление историей сессий (list, rename, export, prune, delete)",
+        description="Просмотр и управление SQLite-хранилищем сессий",
     )
     sessions_subparsers = sessions_parser.add_subparsers(dest="sessions_action")
 
-    sessions_list = sessions_subparsers.add_parser("list", help="List recent sessions")
+    sessions_list = sessions_subparsers.add_parser("list", help="Показать последние сессии")
     sessions_list.add_argument(
-        "--source", help="Filter by source (cli, telegram, discord, etc.)"
+        "--source", help="Фильтр по источнику (cli, telegram, discord и т.п.)"
     )
     sessions_list.add_argument(
-        "--limit", type=int, default=20, help="Max sessions to show"
+        "--limit", type=int, default=20, help="Максимум сессий для показа"
     )
 
     sessions_export = sessions_subparsers.add_parser(
-        "export", help="Export sessions to a JSONL file"
+        "export", help="Экспортировать сессии в JSONL-файл"
     )
     sessions_export.add_argument(
-        "output", help="Output JSONL file path (use - for stdout)"
+        "output", help="Путь к выходному JSONL-файлу (используйте - для stdout)"
     )
-    sessions_export.add_argument("--source", help="Filter by source")
-    sessions_export.add_argument("--session-id", help="Export a specific session")
+    sessions_export.add_argument("--source", help="Фильтр по источнику")
+    sessions_export.add_argument("--session-id", help="Экспортировать конкретную сессию")
 
     sessions_delete = sessions_subparsers.add_parser(
-        "delete", help="Delete a specific session"
+        "delete", help="Удалить конкретную сессию"
     )
-    sessions_delete.add_argument("session_id", help="Session ID to delete")
+    sessions_delete.add_argument("session_id", help="ID сессии для удаления")
     sessions_delete.add_argument(
-        "--yes", "-y", action="store_true", help="Skip confirmation"
+        "--yes", "-y", action="store_true", help="Пропустить подтверждение"
     )
 
-    sessions_prune = sessions_subparsers.add_parser("prune", help="Delete old sessions")
+    sessions_prune = sessions_subparsers.add_parser("prune", help="Удалить старые сессии")
     sessions_prune.add_argument(
         "--older-than",
         type=int,
         default=90,
-        help="Delete sessions older than N days (default: 90)",
+        help="Удалить сессии старше N дней (по умолчанию: 90)",
     )
-    sessions_prune.add_argument("--source", help="Only prune sessions from this source")
+    sessions_prune.add_argument("--source", help="Удалять только сессии из этого источника")
     sessions_prune.add_argument(
-        "--yes", "-y", action="store_true", help="Skip confirmation"
+        "--yes", "-y", action="store_true", help="Пропустить подтверждение"
     )
 
     sessions_subparsers.add_parser(
         "optimize",
-        help="Reclaim disk space: merge FTS5 segments + VACUUM (no data change)",
+        help="Освободить место: merge FTS5 segments + VACUUM (без изменения данных)",
     )
 
     sessions_repair = sessions_subparsers.add_parser(
         "repair",
-        help="Repair a malformed state.db schema so hidden sessions reappear",
+        help="Починить поврежденную схему state.db, чтобы скрытые сессии снова появились",
         description=(
-            "Recover a state.db whose schema is malformed (e.g. 'table "
-            "messages_fts already exists'), which makes Desktop/Dashboard show "
-            "no sessions. A backup is made first; sessions and messages are "
-            "preserved and the FTS search index is rebuilt if needed."
+            "Восстановить state.db с поврежденной схемой (например 'table "
+            "messages_fts already exists'), из-за которой Desktop/Dashboard "
+            "не показывают сессии. Сначала создается backup; сессии и сообщения "
+            "сохраняются, FTS search index перестраивается при необходимости."
         ),
     )
     sessions_repair.add_argument(
         "--check-only",
         action="store_true",
-        help="Only report whether the database opens cleanly; do not modify it",
+        help="Только сообщить, открывается ли база без ошибок; не изменять ее",
     )
     sessions_repair.add_argument(
         "--no-backup",
         action="store_true",
-        help="Skip the timestamped backup copy (not recommended)",
+        help="Пропустить backup-копию с timestamp (не рекомендуется)",
     )
 
-    sessions_subparsers.add_parser("stats", help="Show session store statistics")
+    sessions_subparsers.add_parser("stats", help="Показать статистику хранилища сессий")
 
     sessions_rename = sessions_subparsers.add_parser(
-        "rename", help="Set or change a session's title"
+        "rename", help="Задать или изменить заголовок сессии"
     )
-    sessions_rename.add_argument("session_id", help="Session ID to rename")
-    sessions_rename.add_argument("title", nargs="+", help="New title for the session")
+    sessions_rename.add_argument("session_id", help="ID сессии для переименования")
+    sessions_rename.add_argument("title", nargs="+", help="Новый заголовок сессии")
 
     sessions_browse = sessions_subparsers.add_parser(
         "browse",
-        help="Interactive session picker — browse, search, and resume sessions",
+        help="Интерактивный выбор сессий: просмотр, поиск и продолжение",
     )
     sessions_browse.add_argument(
-        "--source", help="Filter by source (cli, telegram, discord, etc.)"
+        "--source", help="Фильтр по источнику (cli, telegram, discord и т.п.)"
     )
     sessions_browse.add_argument(
-        "--limit", type=int, default=500, help="Max sessions to load (default: 500)"
+        "--limit", type=int, default=500, help="Максимум сессий для загрузки (по умолчанию: 500)"
     )
 
     def _confirm_prompt(prompt: str) -> bool:
@@ -12472,14 +12469,14 @@ def main():
     # =========================================================================
     completion_parser = subparsers.add_parser(
         "completion",
-        help="Print shell completion script (bash, zsh, or fish)",
+        help="Вывести shell completion script (bash, zsh или fish)",
     )
     completion_parser.add_argument(
         "shell",
         nargs="?",
         default="bash",
         choices=["bash", "zsh", "fish"],
-        help="Shell type (default: bash)",
+        help="Тип shell (по умолчанию: bash)",
     )
     completion_parser.set_defaults(func=lambda args: cmd_completion(args, parser))
 

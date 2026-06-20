@@ -16,33 +16,33 @@ def build_mcp_parser(subparsers, *, cmd_mcp: Callable) -> None:
     """Attach the ``mcp`` subcommand to ``subparsers``."""
     mcp_parser = subparsers.add_parser(
         "mcp",
-        help="Manage MCP servers and run Hermes as an MCP server",
+        help="Управлять MCP-серверами и запускать Hermes как MCP-сервер",
         description=(
-            "Manage MCP server connections and run Hermes as an MCP server.\n\n"
-            "MCP servers provide additional tools via the Model Context Protocol.\n"
-            "Use 'hermes mcp add' to connect to a new server, or\n"
-            "'hermes mcp serve' to expose Hermes conversations over MCP."
+            "Управление подключениями MCP-серверов и запуск Hermes как MCP-сервера.\n\n"
+            "MCP-серверы предоставляют дополнительные инструменты через Model Context Protocol.\n"
+            "Используйте 'hermes mcp add' для подключения нового сервера или\n"
+            "'hermes mcp serve', чтобы открыть разговоры Hermes через MCP."
         ),
     )
     mcp_sub = mcp_parser.add_subparsers(dest="mcp_action")
 
     mcp_serve_p = mcp_sub.add_parser(
         "serve",
-        help="Run Hermes as an MCP server (expose conversations to other agents)",
+        help="Запустить Hermes как MCP-сервер (открыть разговоры другим агентам)",
     )
     mcp_serve_p.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="Enable verbose logging on stderr",
+        help="Включить подробное логирование в stderr",
     )
     add_accept_hooks_flag(mcp_serve_p)
 
     mcp_add_p = mcp_sub.add_parser(
-        "add", help="Add an MCP server (discovery-first install)"
+        "add", help="Добавить MCP-сервер (установка с discovery-first)"
     )
-    mcp_add_p.add_argument("name", help="Server name (used as config key)")
-    mcp_add_p.add_argument("--url", help="HTTP/SSE endpoint URL")
+    mcp_add_p.add_argument("name", help="Имя сервера (используется как ключ config)")
+    mcp_add_p.add_argument("--url", help="URL endpoint HTTP/SSE")
     # dest="mcp_command" so this flag does not clobber the top-level
     # subparser's args.command attribute, which the dispatcher reads to
     # route to cmd_mcp.  Without an explicit dest, argparse derives
@@ -50,58 +50,58 @@ def build_mcp_parser(subparsers, *, cmd_mcp: Callable) -> None:
     # flag is omitted, causing `hermes mcp add ...` to fall through to
     # interactive chat.
     mcp_add_p.add_argument(
-        "--command", dest="mcp_command", help="Stdio command (e.g. npx)"
+        "--command", dest="mcp_command", help="Stdio-команда (например npx)"
     )
     mcp_add_p.add_argument(
         "--args",
         nargs=argparse.REMAINDER,
         default=[],
-        help="Arguments for stdio command; must be the last option",
+        help="Аргументы stdio-команды; должны идти последней опцией",
     )
-    mcp_add_p.add_argument("--auth", choices=["oauth", "header"], help="Auth method")
-    mcp_add_p.add_argument("--preset", help="Known MCP preset name")
+    mcp_add_p.add_argument("--auth", choices=["oauth", "header"], help="Метод авторизации")
+    mcp_add_p.add_argument("--preset", help="Имя известного MCP-пресета")
     mcp_add_p.add_argument(
         "--env",
         nargs="*",
         default=[],
-        help="Environment variables for stdio servers (KEY=VALUE)",
+        help="Переменные окружения для stdio-серверов (KEY=VALUE)",
     )
 
-    mcp_rm_p = mcp_sub.add_parser("remove", aliases=["rm"], help="Remove an MCP server")
-    mcp_rm_p.add_argument("name", help="Server name to remove")
+    mcp_rm_p = mcp_sub.add_parser("remove", aliases=["rm"], help="Удалить MCP-сервер")
+    mcp_rm_p.add_argument("name", help="Имя сервера для удаления")
 
-    mcp_sub.add_parser("list", aliases=["ls"], help="List configured MCP servers")
+    mcp_sub.add_parser("list", aliases=["ls"], help="Показать настроенные MCP-серверы")
 
-    mcp_test_p = mcp_sub.add_parser("test", help="Test MCP server connection")
-    mcp_test_p.add_argument("name", help="Server name to test")
+    mcp_test_p = mcp_sub.add_parser("test", help="Проверить подключение к MCP-серверу")
+    mcp_test_p.add_argument("name", help="Имя сервера для проверки")
 
     mcp_cfg_p = mcp_sub.add_parser(
-        "configure", aliases=["config"], help="Toggle tool selection"
+        "configure", aliases=["config"], help="Настроить выбор инструментов"
     )
-    mcp_cfg_p.add_argument("name", help="Server name to configure")
+    mcp_cfg_p.add_argument("name", help="Имя сервера для настройки")
 
     mcp_login_p = mcp_sub.add_parser(
         "login",
-        help="Force re-authentication for an OAuth-based MCP server",
+        help="Принудительно переавторизовать OAuth-based MCP-сервер",
     )
-    mcp_login_p.add_argument("name", help="Server name to re-authenticate")
+    mcp_login_p.add_argument("name", help="Имя сервера для переавторизации")
 
     # ── Catalog (Nous-approved MCPs shipped with the repo) ─────────────────
     mcp_sub.add_parser(
         "picker",
-        help="Interactive catalog picker (also the default for `hermes mcp`)",
+        help="Интерактивный выбор из каталога (также по умолчанию для `hermes mcp`)",
     )
     mcp_sub.add_parser(
         "catalog",
-        help="List Nous-approved MCPs available for one-click install",
+        help="Показать одобренные Nous MCP для установки в один клик",
     )
     mcp_install_p = mcp_sub.add_parser(
         "install",
-        help="Install a catalog MCP by name (e.g. `hermes mcp install n8n`)",
+        help="Установить MCP из каталога по имени (например `hermes mcp install n8n`)",
     )
     mcp_install_p.add_argument(
         "identifier",
-        help="Catalog entry name (or `official/<name>`)",
+        help="Имя записи каталога (или `official/<name>`)",
     )
 
     add_accept_hooks_flag(mcp_parser)

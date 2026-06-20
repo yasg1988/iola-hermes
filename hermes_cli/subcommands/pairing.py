@@ -13,24 +13,24 @@ def build_pairing_parser(subparsers, *, cmd_pairing: Callable) -> None:
     """Attach the ``pairing`` subcommand to ``subparsers``."""
     pairing_parser = subparsers.add_parser(
         "pairing",
-        help="Manage DM pairing codes for user authorization",
-        description="Approve or revoke user access via pairing codes",
+        help="Управление pairing-кодами DM для авторизации пользователей",
+        description="Подтверждение или отзыв доступа пользователей через pairing-коды",
     )
     pairing_sub = pairing_parser.add_subparsers(dest="pairing_action")
 
-    pairing_sub.add_parser("list", help="Show pending + approved users")
+    pairing_sub.add_parser("list", help="Показать ожидающих и одобренных пользователей")
 
     pairing_approve_parser = pairing_sub.add_parser(
-        "approve", help="Approve a pairing code"
+        "approve", help="Одобрить pairing-код"
     )
     pairing_approve_parser.add_argument(
-        "platform", help="Platform name (telegram, discord, slack, whatsapp)"
+        "platform", help="Имя платформы (telegram, discord, slack, whatsapp)"
     )
-    pairing_approve_parser.add_argument("code", help="Pairing code to approve")
+    pairing_approve_parser.add_argument("code", help="Pairing-код для одобрения")
 
-    pairing_revoke_parser = pairing_sub.add_parser("revoke", help="Revoke user access")
-    pairing_revoke_parser.add_argument("platform", help="Platform name")
-    pairing_revoke_parser.add_argument("user_id", help="User ID to revoke")
+    pairing_revoke_parser = pairing_sub.add_parser("revoke", help="Отозвать доступ пользователя")
+    pairing_revoke_parser.add_argument("platform", help="Имя платформы")
+    pairing_revoke_parser.add_argument("user_id", help="ID пользователя для отзыва")
 
-    pairing_sub.add_parser("clear-pending", help="Clear all pending codes")
+    pairing_sub.add_parser("clear-pending", help="Очистить все ожидающие коды")
     pairing_parser.set_defaults(func=cmd_pairing)

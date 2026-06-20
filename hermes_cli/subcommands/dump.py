@@ -16,13 +16,13 @@ def build_dump_parser(subparsers, *, cmd_dump: Callable) -> None:
     # =========================================================================
     dump_parser = subparsers.add_parser(
         "dump",
-        help="Dump setup summary for support/debugging",
-        description="Output a compact, plain-text summary of your Hermes setup "
-        "that can be copy-pasted into Discord/GitHub for support context",
+        help="Вывести сводку установки для поддержки/отладки",
+        description="Вывести компактную plain-text сводку настройки Hermes, "
+        "которую можно вставить в Discord/GitHub для контекста поддержки",
     )
     dump_parser.add_argument(
         "--show-keys",
         action="store_true",
-        help="Show redacted API key prefixes (first/last 4 chars) instead of just set/not set",
+        help="Показать замаскированные префиксы API-ключей (первые/последние 4 символа) вместо set/not set",
     )
     dump_parser.set_defaults(func=cmd_dump)

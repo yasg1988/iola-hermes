@@ -280,9 +280,9 @@ def _find_bash() -> str:
             return candidate
 
     raise RuntimeError(
-        "Git Bash not found. Hermes Agent requires Git for Windows on Windows.\n"
-        "Install it from: https://git-scm.com/download/win\n"
-        "Or set HERMES_GIT_BASH_PATH to your bash.exe location."
+        "Git Bash не найден. Hermes RU Iola на Windows требует Git for Windows.\n"
+        "Установите его: https://git-scm.com/download/win\n"
+        "Или задайте HERMES_GIT_BASH_PATH с путем к bash.exe."
     )
 
 

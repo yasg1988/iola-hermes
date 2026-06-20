@@ -16,7 +16,7 @@ def build_whatsapp_parser(subparsers, *, cmd_whatsapp: Callable) -> None:
     # =========================================================================
     whatsapp_parser = subparsers.add_parser(
         "whatsapp",
-        help="Set up WhatsApp integration",
-        description="Configure WhatsApp and pair via QR code",
+        help="Настроить интеграцию WhatsApp",
+        description="Настроить WhatsApp и выполнить pairing через QR-код",
     )
     whatsapp_parser.set_defaults(func=cmd_whatsapp)

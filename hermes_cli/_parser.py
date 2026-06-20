@@ -57,7 +57,7 @@ _TOP_LEVEL_COMMAND_HELP_RU: dict[str, str] = {
     "auth": "Управлять пулом учётных данных провайдеров",
     "status": "Показать статус всех компонентов",
     "cron": "Управлять задачами по расписанию",
-    "webhook": "Управлять dynamic webhook subscriptions",
+    "webhook": "Управлять динамическими webhook-подписками",
     "portal": "Настроить Nous Portal",
     "kanban": "Доска совместной работы нескольких профилей",
     "hooks": "Проверить и настроить shell hooks",
@@ -71,7 +71,7 @@ _TOP_LEVEL_COMMAND_HELP_RU: dict[str, str] = {
     "config": "Просмотр и редактирование конфигурации",
     "pairing": "Управлять DM pairing-кодами",
     "skills": "Искать, устанавливать и управлять навыками",
-    "bundles": "Создавать и управлять skill bundles",
+    "bundles": "Создавать и управлять наборами навыков",
     "plugins": "Управлять плагинами",
     "curator": "Фоновое обслуживание навыков",
     "memory": "Настроить внешний провайдер памяти",
@@ -86,12 +86,12 @@ _TOP_LEVEL_COMMAND_HELP_RU: dict[str, str] = {
     "uninstall": "Удалить Hermes RU Iola",
     "acp": "Запустить ACP-сервер",
     "profile": "Управлять профилями",
-    "completion": "Вывести shell completion script",
+    "completion": "Вывести скрипт автодополнения shell",
     "dashboard": "Запустить web-панель управления",
     "desktop": "Собрать и запустить desktop-приложение",
     "gui": "Собрать и запустить desktop-приложение",
     "logs": "Просмотр и фильтрация логов",
-    "prompt-size": "Показать размер system prompt и tool schemas",
+    "prompt-size": "Показать размер системного промпта и схем инструментов",
 }
 
 

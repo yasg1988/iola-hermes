@@ -2231,7 +2231,7 @@ class CLICommandsMixin:
         from hermes_cli.config import is_managed, format_managed_message
 
         if is_managed():
-            print(f"  ✗ {format_managed_message('update Hermes Agent')}")
+            print(f"  ✗ {format_managed_message('обновить Hermes RU Iola')}")
             return False
 
         # Use the prompt_toolkit-native modal so the confirmation panel
@@ -2239,16 +2239,16 @@ class CLICommandsMixin:
         # with the prompt_toolkit event loop (same pattern as
         # _confirm_destructive_slash).
         choices = [
-            ("once", "Update Now", "exit the current session and update Hermes Agent"),
-            ("cancel", "Cancel", "keep the current session"),
+            ("once", "Обновить сейчас", "завершить текущую сессию и обновить Hermes RU Iola"),
+            ("cancel", "Отмена", "оставить текущую сессию"),
         ]
         raw = self._prompt_text_input_modal(
-            title="⚕  Update Hermes Agent",
-            detail="This will exit the current session and run `hermes update`.",
+            title="⚕  Обновить Hermes RU Iola",
+            detail="Текущая сессия будет завершена, затем запустится `hermes update`.",
             choices=choices,
         )
         if raw is None:
-            print("  🟡 /update cancelled.")
+            print("  🟡 /update отменен.")
             return False
         choice = self._normalize_slash_confirm_choice(raw, choices)
         if choice != "once":

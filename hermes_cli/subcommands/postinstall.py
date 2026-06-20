@@ -16,8 +16,8 @@ def build_postinstall_parser(subparsers, *, cmd_postinstall: Callable) -> None:
     # =========================================================================
     postinstall_parser = subparsers.add_parser(
         "postinstall",
-        help="Bootstrap non-Python deps for pip installs (node, browser, ripgrep, ffmpeg)",
-        description="One-shot post-install for pip users. Installs system "
-        "dependencies that pip cannot provide, then runs setup if needed.",
+        help="Подготовить не-Python зависимости для pip-установки (node, browser, ripgrep, ffmpeg)",
+        description="Одноразовый post-install для пользователей pip. Устанавливает "
+        "системные зависимости, которые pip не может поставить, затем при необходимости запускает setup.",
     )
     postinstall_parser.set_defaults(func=cmd_postinstall)

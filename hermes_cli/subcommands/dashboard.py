@@ -26,7 +26,7 @@ def build_dashboard_parser(
         "--port", type=int, default=9119, help="Порт (9119 по умолчанию, 0 для автоназначения)"
     )
     dashboard_parser.add_argument(
-        "--host", default="127.0.0.1", help="Host (127.0.0.1 по умолчанию)"
+        "--host", default="127.0.0.1", help="Хост (127.0.0.1 по умолчанию)"
     )
     dashboard_parser.add_argument(
         "--no-open", action="store_true", help="Не открывать браузер автоматически"

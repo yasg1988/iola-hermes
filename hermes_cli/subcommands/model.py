@@ -26,11 +26,11 @@ def build_model_parser(subparsers, *, cmd_model: Callable) -> None:
     )
     model_parser.add_argument(
         "--portal-url",
-        help="Base URL портала для входа Nous",
+        help="Базовый URL портала для входа Nous",
     )
     model_parser.add_argument(
         "--inference-url",
-        help="Base URL inference API для входа Nous",
+        help="Базовый URL inference API для входа Nous",
     )
     model_parser.add_argument(
         "--client-id",
@@ -57,7 +57,7 @@ def build_model_parser(subparsers, *, cmd_model: Callable) -> None:
         "--timeout",
         type=float,
         default=15.0,
-        help="Timeout HTTP-запросов для входа Nous в секундах",
+        help="Таймаут HTTP-запросов для входа Nous в секундах",
     )
     model_parser.add_argument("--ca-bundle", help="Путь к PEM CA bundle для TLS-проверки Nous")
     model_parser.add_argument(
