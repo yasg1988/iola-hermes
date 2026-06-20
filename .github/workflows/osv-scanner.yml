@@ -21,6 +21,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "website/package-lock.json"
+      - ".github/workflows/osv-scanner.yml"
   schedule:
     # Weekly scan against main — catches CVEs published after merge for
     # deps that haven't changed since.
