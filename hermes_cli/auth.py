@@ -190,7 +190,11 @@ PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
         name="GigaChat",
         auth_type="api_key",
         inference_base_url=DEFAULT_GIGACHAT_BASE_URL,
-        api_key_env_vars=("GIGACHAT_AUTH_KEY", "GIGACHAT_ACCESS_TOKEN"),
+        api_key_env_vars=(
+            "GIGACHAT_AUTH_KEY",
+            "GIGACHAT_CLIENT_SECRET",
+            "GIGACHAT_ACCESS_TOKEN",
+        ),
         base_url_env_var="GIGACHAT_BASE_URL",
     ),
     "nous": ProviderConfig(
@@ -603,6 +607,25 @@ def _resolve_api_key_provider_secret(
             logger.warning("Copilot token validation failed: %s", exc)
         except Exception:
             pass
+        return "", ""
+
+    if provider_id == "gigachat":
+        from hermes_cli.config import get_env_value
+
+        access_token = (get_env_value("GIGACHAT_ACCESS_TOKEN") or "").strip()
+        if has_usable_secret(access_token):
+            return access_token, "GIGACHAT_ACCESS_TOKEN"
+
+        auth_key = (get_env_value("GIGACHAT_AUTH_KEY") or "").strip()
+        if has_usable_secret(auth_key):
+            return auth_key, "GIGACHAT_AUTH_KEY"
+
+        client_id = (get_env_value("GIGACHAT_CLIENT_ID") or "").strip()
+        client_secret = (get_env_value("GIGACHAT_CLIENT_SECRET") or "").strip()
+        if has_usable_secret(client_id) and has_usable_secret(client_secret):
+            raw = f"{client_id}:{client_secret}".encode("utf-8")
+            return base64.b64encode(raw).decode("ascii"), "GIGACHAT_CLIENT_ID/GIGACHAT_CLIENT_SECRET"
+
         return "", ""
 
     from hermes_cli.config import get_env_value

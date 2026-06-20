@@ -2331,11 +2331,90 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
         if existing_key:
             break
 
-    existing_key, abort = _prompt_api_key(
-        pconfig, existing_key, provider_id=provider_id
-    )
-    if abort:
-        return
+    if provider_id == "gigachat":
+        from hermes_cli.secret_prompt import masked_secret_prompt
+
+        auth_key = (
+            get_env_value("GIGACHAT_AUTH_KEY")
+            or os.getenv("GIGACHAT_AUTH_KEY", "")
+        ).strip()
+        access_token = (
+            get_env_value("GIGACHAT_ACCESS_TOKEN")
+            or os.getenv("GIGACHAT_ACCESS_TOKEN", "")
+        ).strip()
+        client_id = (
+            get_env_value("GIGACHAT_CLIENT_ID")
+            or os.getenv("GIGACHAT_CLIENT_ID", "")
+        ).strip()
+        client_secret = (
+            get_env_value("GIGACHAT_CLIENT_SECRET")
+            or os.getenv("GIGACHAT_CLIENT_SECRET", "")
+        ).strip()
+
+        if auth_key or access_token or (client_id and client_secret):
+            source = (
+                "GIGACHAT_AUTH_KEY"
+                if auth_key
+                else "GIGACHAT_ACCESS_TOKEN"
+                if access_token
+                else "GIGACHAT_CLIENT_ID/GIGACHAT_CLIENT_SECRET"
+            )
+            print(f"  GigaChat credentials: {source} ✓")
+            existing_key = auth_key or access_token or client_secret
+        else:
+            try:
+                auth_key = masked_secret_prompt(
+                    "GIGACHAT_AUTH_KEY (Enter to use Client ID + Client Secret): "
+                ).strip()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return
+            if auth_key:
+                save_env_value("GIGACHAT_AUTH_KEY", auth_key)
+                existing_key = auth_key
+                print("  ✓ GigaChat authorization key saved.")
+
+        if not existing_key and not client_id:
+            try:
+                client_id = input("GigaChat Client ID: ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return
+        if not existing_key and not client_secret:
+            try:
+                client_secret = masked_secret_prompt("GigaChat Client Secret: ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return
+        if not existing_key and (not client_id or not client_secret):
+            print("  Cancelled: enter GIGACHAT_AUTH_KEY or Client ID + Client Secret.")
+            return
+        if not existing_key:
+            save_env_value("GIGACHAT_CLIENT_ID", client_id)
+            save_env_value("GIGACHAT_CLIENT_SECRET", client_secret)
+            print("  ✓ GigaChat Client ID and Client Secret saved.")
+            existing_key = client_secret
+
+        current_scope = (
+            get_env_value("GIGACHAT_SCOPE")
+            or os.getenv("GIGACHAT_SCOPE", "")
+            or "GIGACHAT_API_PERS"
+        ).strip()
+        try:
+            scope_input = input(f"GigaChat scope [{current_scope}]: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print()
+            scope_input = ""
+        selected_scope = scope_input or current_scope
+        if selected_scope:
+            save_env_value("GIGACHAT_SCOPE", selected_scope)
+        print()
+    else:
+        existing_key, abort = _prompt_api_key(
+            pconfig, existing_key, provider_id=provider_id
+        )
+        if abort:
+            return
 
     yandex_folder_id = ""
     if provider_id == "yandexgpt":

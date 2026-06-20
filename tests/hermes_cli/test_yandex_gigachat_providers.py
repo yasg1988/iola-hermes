@@ -24,6 +24,8 @@ def _clear_provider_env(monkeypatch):
         "YC_FOLDER_ID",
         "YANDEXGPT_BASE_URL",
         "GIGACHAT_AUTH_KEY",
+        "GIGACHAT_CLIENT_ID",
+        "GIGACHAT_CLIENT_SECRET",
         "GIGACHAT_ACCESS_TOKEN",
         "GIGACHAT_BASE_URL",
         "GIGACHAT_OAUTH_URL",
@@ -82,7 +84,11 @@ def test_yandex_registry_profile_and_env(monkeypatch):
 def test_gigachat_registry_profile_and_env():
     pconfig = PROVIDER_REGISTRY["gigachat"]
     assert pconfig.name == "GigaChat"
-    assert pconfig.api_key_env_vars == ("GIGACHAT_AUTH_KEY", "GIGACHAT_ACCESS_TOKEN")
+    assert pconfig.api_key_env_vars == (
+        "GIGACHAT_AUTH_KEY",
+        "GIGACHAT_CLIENT_SECRET",
+        "GIGACHAT_ACCESS_TOKEN",
+    )
     assert pconfig.base_url_env_var == "GIGACHAT_BASE_URL"
     assert pconfig.inference_base_url == DEFAULT_GIGACHAT_BASE_URL
 
@@ -91,6 +97,8 @@ def test_gigachat_registry_profile_and_env():
     assert profile.base_url == DEFAULT_GIGACHAT_BASE_URL
     assert "GigaChat" in _PROVIDER_MODELS["gigachat"]
     assert OPTIONAL_ENV_VARS["GIGACHAT_AUTH_KEY"]["password"] is True
+    assert OPTIONAL_ENV_VARS["GIGACHAT_CLIENT_ID"]["password"] is False
+    assert OPTIONAL_ENV_VARS["GIGACHAT_CLIENT_SECRET"]["password"] is True
 
 
 def test_gigachat_preissued_access_token(monkeypatch):
@@ -135,3 +143,33 @@ def test_gigachat_auth_key_is_exchanged_for_access_token(monkeypatch):
     assert data == {"scope": "GIGACHAT_API_PERS"}
     assert headers["Authorization"] == "Basic auth-key"
     assert headers["RqUID"]
+
+
+def test_gigachat_client_id_secret_build_authorization_key(monkeypatch):
+    import base64
+
+    import hermes_cli.auth as auth
+
+    auth._GIGACHAT_TOKEN_CACHE.clear()
+    captured = {}
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"access_token": "runtime-token", "expires_at": 4_102_444_800_000}
+
+    def fake_post(url, *, data, headers, timeout):
+        captured.update(headers=headers)
+        return _Response()
+
+    monkeypatch.setenv("GIGACHAT_CLIENT_ID", "client-id")
+    monkeypatch.setenv("GIGACHAT_CLIENT_SECRET", "client-secret")
+    monkeypatch.setattr(auth.httpx, "post", fake_post)
+
+    creds = resolve_api_key_provider_credentials("gigachat")
+
+    expected = base64.b64encode(b"client-id:client-secret").decode("ascii")
+    assert creds["api_key"] == "runtime-token"
+    assert captured["headers"]["Authorization"] == f"Basic {expected}"
