@@ -47,8 +47,8 @@ describe('isRemoteReauthFailure', () => {
 
 describe('deriveProviderShape', () => {
   it('generic copy when there are no providers', () => {
-    expect(deriveProviderShape([])).toEqual({ isPassword: false, providerLabel: 'your identity provider' })
-    expect(deriveProviderShape(null)).toEqual({ isPassword: false, providerLabel: 'your identity provider' })
+    expect(deriveProviderShape([])).toEqual({ isPassword: false, providerLabel: 'провайдер авторизации' })
+    expect(deriveProviderShape(null)).toEqual({ isPassword: false, providerLabel: 'провайдер авторизации' })
   })
 
   it('password shape when the sole provider supports password', () => {
@@ -82,19 +82,19 @@ describe('deriveProviderShape', () => {
 })
 
 describe('signInLabel', () => {
-  it('password gateway gets the plain "Sign in to remote gateway" copy', () => {
+  it('password gateway gets the plain remote gateway copy', () => {
     expect(signInLabel({ url: 'x', isPassword: true, providerLabel: 'Username & Password' })).toBe(
-      'Sign in to remote gateway'
+      'Войти в удаленный gateway'
     )
   })
 
   it('OAuth gateway names the provider', () => {
     expect(signInLabel({ url: 'x', isPassword: false, providerLabel: 'Nous Research' })).toBe(
-      'Sign in with Nous Research'
+      'Войти через Nous Research'
     )
   })
 
   it('null reauth falls back to the generic provider phrase', () => {
-    expect(signInLabel(null)).toBe('Sign in with your identity provider')
+    expect(signInLabel(null)).toBe('Войти через провайдер авторизации')
   })
 })

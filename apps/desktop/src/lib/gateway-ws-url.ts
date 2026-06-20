@@ -63,7 +63,7 @@ export async function resolveGatewayWsUrl(
       // dead, so connecting with it cannot succeed. Surface a reauth error
       // rather than silently attempting a doomed connect.
       throw new GatewayReauthRequiredError(
-        'Your remote gateway session needs to be refreshed. Open Settings → Gateway and click "Sign in" again.'
+        'Сессию удаленного gateway нужно обновить. Откройте Настройки → Gateway и снова нажмите "Войти".'
       )
     }
 
@@ -71,7 +71,7 @@ export async function resolveGatewayWsUrl(
       return await mint(profile)
     } catch (error) {
       throw new GatewayReauthRequiredError(
-        'Your remote gateway session has expired. Open Settings → Gateway and click "Sign in" again.',
+        'Сессия удаленного gateway истекла. Откройте Настройки → Gateway и снова нажмите "Войти".',
         { cause: error }
       )
     }

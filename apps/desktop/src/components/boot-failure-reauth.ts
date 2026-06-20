@@ -8,7 +8,7 @@ import type { DesktopAuthProvider, DesktopConnectionConfig } from '@/global'
 export interface RemoteReauth {
   url: string
   // True when every advertised provider is username/password — drives the
-  // button copy ("Sign in to remote gateway" vs "Sign in with <provider>"),
+  // button copy ("Войти в удаленный gateway" vs "Войти через <provider>"),
   // mirroring the gateway-settings page. Probe is best-effort.
   isPassword: boolean
   providerLabel: string
@@ -21,9 +21,9 @@ interface SignInCopy {
 }
 
 const DEFAULT_SIGN_IN_COPY: SignInCopy = {
-  identityProvider: 'your identity provider',
-  remoteGateway: 'Sign in to remote gateway',
-  withProvider: provider => `Sign in with ${provider}`
+  identityProvider: 'провайдер авторизации',
+  remoteGateway: 'Войти в удаленный gateway',
+  withProvider: provider => `Войти через ${provider}`
 }
 
 // A remote, gated (oauth-bucket), not-currently-connected gateway is a
@@ -56,7 +56,7 @@ export function deriveProviderShape(providers: DesktopAuthProvider[] | null | un
   const list = providers ?? []
 
   if (list.length === 0) {
-    return { isPassword: false, providerLabel: 'your identity provider' }
+    return { isPassword: false, providerLabel: 'провайдер авторизации' }
   }
 
   const isPassword = list.every(p => Boolean(p.supportsPassword))
