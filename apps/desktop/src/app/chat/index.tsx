@@ -374,7 +374,7 @@ export function ChatView({
       },
       tools: {
         enabled: true,
-        label: 'Add context',
+        label: 'Добавить контекст',
         suggestions: contextSuggestions
       },
       voice: {

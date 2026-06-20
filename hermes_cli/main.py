@@ -5723,9 +5723,7 @@ def _print_curator_first_run_notice() -> None:
     )
     print("  Preview now:  hermes curator run --dry-run")
     print("  Pause it:     hermes curator pause")
-    print(
-        "  Docs:         https://hermes-agent.nousresearch.com/docs/user-guide/features/curator"
-    )
+    print("  Документация: https://github.com/yasg1988/iola-hermes#readme")
 
 
 def _print_curator_recent_run_notice() -> None:
@@ -5967,9 +5965,7 @@ def _update_via_zip(args):
             f"--branch {branch}`, or update against main with `hermes update`."
         )
         sys.exit(1)
-    zip_url = (
-        f"https://github.com/NousResearch/hermes-agent/archive/refs/heads/{branch}.zip"
-    )
+    zip_url = f"https://github.com/yasg1988/iola-hermes/archive/refs/heads/{branch}.zip"
 
     print("→ Downloading latest version...")
     tmp_dir = tempfile.mkdtemp(prefix="hermes-update-")
@@ -6376,12 +6372,12 @@ def _discard_stashed_changes(
 # =========================================================================
 
 OFFICIAL_REPO_URLS = {
-    "https://github.com/NousResearch/hermes-agent.git",
-    "git@github.com:NousResearch/hermes-agent.git",
-    "https://github.com/NousResearch/hermes-agent",
-    "git@github.com:NousResearch/hermes-agent",
+    "https://github.com/yasg1988/iola-hermes.git",
+    "git@github.com:yasg1988/iola-hermes.git",
+    "https://github.com/yasg1988/iola-hermes",
+    "git@github.com:yasg1988/iola-hermes",
 }
-OFFICIAL_REPO_URL = "https://github.com/NousResearch/hermes-agent.git"
+OFFICIAL_REPO_URL = "https://github.com/yasg1988/iola-hermes.git"
 SKIP_UPSTREAM_PROMPT_FILE = ".skip_upstream_prompt"
 
 
@@ -6514,30 +6510,28 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
 
         # Ask user if they want to add upstream
         print()
-        print("ℹ Your fork is not tracking the official Hermes repository.")
-        print("  This means you may miss updates from NousResearch/hermes-agent.")
+        print("ℹ Ваш fork не отслеживает основной репозиторий Hermes RU Iola.")
+        print("  Это значит, что вы можете пропустить обновления yasg1988/iola-hermes.")
         print()
         try:
             response = (
-                input("Add official repo as 'upstream' remote? [Y/n]: ").strip().lower()
+                input("Добавить основной repo как remote 'upstream'? [Y/n]: ").strip().lower()
             )
         except (EOFError, KeyboardInterrupt):
             print()
             response = "n"
 
         if response in {"", "y", "yes"}:
-            print("→ Adding upstream remote...")
+            print("→ Добавляю upstream remote...")
             if _add_upstream_remote(git_cmd, cwd):
-                print(
-                    "  ✓ Added upstream: https://github.com/NousResearch/hermes-agent.git"
-                )
+                print("  ✓ Добавлен upstream: https://github.com/yasg1988/iola-hermes.git")
                 has_upstream = True
             else:
-                print("  ✗ Failed to add upstream remote. Skipping upstream sync.")
+                print("  ✗ Не удалось добавить upstream remote. Пропускаю upstream sync.")
                 return
         else:
             print(
-                "  Skipped. Run 'git remote add upstream https://github.com/NousResearch/hermes-agent.git' to add later."
+                "  Пропущено. Позже можно выполнить: git remote add upstream https://github.com/yasg1988/iola-hermes.git"
             )
             _mark_skip_upstream_prompt()
             return
@@ -8457,7 +8451,7 @@ def cmd_update(args):
     )
 
     if is_managed():
-        managed_error("update Hermes Agent")
+        managed_error("обновить Hermes RU Iola")
         return
 
     # Docker users can't ``git pull`` — the image excludes ``.git`` from
@@ -8632,7 +8626,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                 return
             print("✗ Not a git repository. Please reinstall:")
             print(
-                "  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"
+                "  https://github.com/yasg1988/iola-hermes#readme"
             )
             sys.exit(1)
 
@@ -11653,7 +11647,7 @@ def main():
             "Управление цепочкой fallback-провайдеров. Провайдеры пробуются "
             "по порядку, когда основная модель падает из-за rate-limit, перегрузки "
             "или сетевых ошибок. См.: "
-            "https://hermes-agent.nousresearch.com/docs/user-guide/features/fallback-providers"
+            "https://github.com/yasg1988/iola-hermes#readme"
         ),
     )
     fallback_subparsers = fallback_parser.add_subparsers(dest="fallback_command")
@@ -11687,7 +11681,7 @@ def main():
             "Загружать API-ключи из внешнего secret manager при старте процесса "
             "вместо хранения в ~/.hermes/.env. Сейчас поддерживается "
             "Bitwarden Secrets Manager. См.: "
-            "https://hermes-agent.nousresearch.com/docs/user-guide/secrets/bitwarden"
+            "https://github.com/yasg1988/iola-hermes#readme"
         ),
     )
     secrets_subparsers = secrets_parser.add_subparsers(dest="secrets_command")

@@ -5710,7 +5710,7 @@ ipcMain.handle('hermes:selectPaths', async (_event, options = {}) => {
   }
 
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: options?.title || 'Add context',
+    title: options?.title || 'Добавить контекст',
     defaultPath: resolvedDefaultPath,
     properties,
     filters: Array.isArray(options?.filters) ? options.filters : undefined

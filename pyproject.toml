@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "iola-hermes"
 version = "0.17.0"
-description = "Hermes RU Iola — русскоязычный форк NousResearch Hermes Agent"
+description = "Hermes RU Iola — русскоязычный открытый ИИ-агент"
 readme = "README.md"
 # Upper bound is load-bearing, not cosmetic. uv resolves the project's
 # Python from `requires-python`, and an inherited `UV_PYTHON` env var (or a

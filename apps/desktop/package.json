@@ -190,8 +190,8 @@
         "CFBundleDisplayName": "Hermes RU Iola",
         "CFBundleExecutable": "Hermes RU Iola",
         "CFBundleName": "Hermes RU Iola",
-        "NSAudioCaptureUsageDescription": "Hermes RU Iola uses audio capture for voice conversations.",
-        "NSMicrophoneUsageDescription": "Hermes RU Iola uses the microphone for voice input and voice conversations."
+        "NSAudioCaptureUsageDescription": "Hermes RU Iola использует захват аудио для голосовых диалогов.",
+        "NSMicrophoneUsageDescription": "Hermes RU Iola использует микрофон для голосового ввода и голосовых диалогов."
       },
       "gatekeeperAssess": false,
       "hardenedRuntime": true,

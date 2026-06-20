@@ -35,8 +35,8 @@ const nousTintTransparent = (pct: number) => `color-mix(in srgb, ${NOUS_BLUE} ${
  */
 export const nousTheme: DesktopTheme = {
   name: 'nous',
-  label: 'Nous',
-  description: 'Glass neutrals with Nous blue accents',
+  label: 'Iola',
+  description: 'Светлое стекло с синими акцентами Hermes RU Iola',
   colors: {
     background: '#F8FAFF',
     foreground: '#17171A',
@@ -101,8 +101,8 @@ export const nousTheme: DesktopTheme = {
 /** Deep blue-violet with cool accents. Matches the dashboard midnight theme. */
 export const midnightTheme: DesktopTheme = {
   name: 'midnight',
-  label: 'Midnight',
-  description: 'Deep blue-violet with cool accents',
+  label: 'Полночь',
+  description: 'Глубокий сине-фиолетовый фон с холодными акцентами',
   colors: {
     background: '#08081c',
     foreground: '#ddd6ff',
@@ -138,8 +138,8 @@ export const midnightTheme: DesktopTheme = {
 /** Warm crimson and bronze — forge vibes. Matches the CLI ares skin. */
 export const emberTheme: DesktopTheme = {
   name: 'ember',
-  label: 'Ember',
-  description: 'Warm crimson and bronze — forge vibes',
+  label: 'Уголь',
+  description: 'Теплый багряный и бронзовый стиль',
   colors: {
     background: '#160800',
     foreground: '#ffd8b0',
@@ -175,8 +175,8 @@ export const emberTheme: DesktopTheme = {
 /** Clean grayscale. Matches the CLI mono skin and dashboard mono theme. */
 export const monoTheme: DesktopTheme = {
   name: 'mono',
-  label: 'Mono',
-  description: 'Clean grayscale — minimal and focused',
+  label: 'Моно',
+  description: 'Чистая серая гамма: минимально и спокойно',
   colors: {
     background: '#0e0e0e',
     foreground: '#eaeaea',
@@ -208,8 +208,8 @@ export const monoTheme: DesktopTheme = {
 /** Neon green on black. Matches the CLI cyberpunk skin and dashboard theme. */
 export const cyberpunkTheme: DesktopTheme = {
   name: 'cyberpunk',
-  label: 'Cyberpunk',
-  description: 'Neon green on black — matrix terminal',
+  label: 'Киберпанк',
+  description: 'Неоновый зеленый на черном: терминальный стиль',
   colors: {
     background: '#000a00',
     foreground: '#00ff41',
@@ -245,8 +245,8 @@ export const cyberpunkTheme: DesktopTheme = {
 /** Cool slate blue for developers. Matches the CLI slate skin. */
 export const slateTheme: DesktopTheme = {
   name: 'slate',
-  label: 'Slate',
-  description: 'Cool slate blue — focused developer theme',
+  label: 'Сланец',
+  description: 'Холодный сине-серый стиль для разработки',
   colors: {
     background: '#0d1117',
     foreground: '#c9d1d9',

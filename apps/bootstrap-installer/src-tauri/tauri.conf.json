@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Hermes",
+  "productName": "Hermes RU Iola",
   "version": "0.0.1",
-  "identifier": "com.nousresearch.hermes.setup",
+  "identifier": "ru.iola.hermes.setup",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:5175",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Hermes",
+        "title": "Hermes RU Iola",
         "width": 880,
         "height": 620,
         "minWidth": 720,
@@ -34,10 +34,10 @@
   "bundle": {
     "active": true,
     "category": "DeveloperTool",
-    "shortDescription": "Hermes",
-    "longDescription": "Installs Hermes Agent on your machine. Drives scripts/install.ps1 (Windows) and scripts/install.sh (macOS/Linux).",
-    "publisher": "Nous Research",
-    "copyright": "Copyright © 2026 Nous Research",
+    "shortDescription": "Hermes RU Iola",
+    "longDescription": "Устанавливает Hermes RU Iola на ваш компьютер. Запускает scripts/install.ps1 (Windows) и scripts/install.sh (macOS/Linux).",
+    "publisher": "Yakunin",
+    "copyright": "Copyright © 2026 Yakunin",
     "targets": [
       "app",
       "dmg",

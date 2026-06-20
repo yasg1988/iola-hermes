@@ -140,7 +140,7 @@ export const coreCommands: SlashCommand[] = [
   },
 
   {
-    help: 'update Hermes Agent to the latest version (exits TUI)',
+    help: 'обновить Hermes RU Iola до последней версии (выход из TUI)',
     name: 'update',
     run: (_arg, ctx) => {
       if (DASHBOARD_TUI_MODE) {
@@ -149,7 +149,7 @@ export const coreCommands: SlashCommand[] = [
         return
       }
 
-      ctx.transcript.sys('exiting TUI to run update...')
+      ctx.transcript.sys('выхожу из TUI, чтобы запустить обновление...')
       // Exit code 42 signals the Python wrapper to exec `hermes update`.
       // Use dieWithCode for proper cleanup (gateway kill + Ink unmount).
       setTimeout(() => ctx.session.dieWithCode(42), 100)
@@ -158,14 +158,14 @@ export const coreCommands: SlashCommand[] = [
 
   {
     aliases: ['scroll'],
-    help: 'set mouse tracking preset [on|off|toggle|wheel|buttons|all]',
+    help: 'задать режим отслеживания мыши [on|off|toggle|wheel|buttons|all]',
     name: 'mouse',
     run: (arg, ctx) => {
       const current = ctx.ui.mouseTracking
       const next = mouseModeFromArg(arg, current)
 
       if (next === null) {
-        return ctx.transcript.sys('usage: /mouse [on|off|toggle|wheel|buttons|all]')
+        return ctx.transcript.sys('использование: /mouse [on|off|toggle|wheel|buttons|all]')
       }
 
       patchUiState({ mouseTracking: next })

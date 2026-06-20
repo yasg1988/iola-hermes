@@ -189,18 +189,18 @@ async function checkRuntime(ctx: OnboardingContext): Promise<RuntimeReadinessRes
 }
 
 function notifyReady(provider: string) {
-  notify({ kind: 'success', title: 'Hermes is ready', message: `${provider} connected.` })
+  notify({ kind: 'success', title: 'Hermes RU Iola готов', message: `${provider} подключен.` })
 }
 
 // Human-friendly labels for tools auto-routed through the Nous Tool Gateway,
 // mirroring hermes_cli/nous_subscription._GATEWAY_TOOL_LABELS so the GUI and
 // CLI describe the same thing.
 const GATEWAY_TOOL_LABELS: Record<string, string> = {
-  browser: 'browser automation',
-  image_gen: 'image generation',
-  tts: 'text-to-speech',
-  video_gen: 'video generation',
-  web: 'web search & extract'
+  browser: 'автоматизация браузера',
+  image_gen: 'генерация изображений',
+  tts: 'озвучивание текста',
+  video_gen: 'генерация видео',
+  web: 'web-поиск и извлечение'
 }
 
 // When switching to Nous auto-routes unconfigured tools through the Tool
@@ -212,13 +212,13 @@ function notifyGatewayTools(tools: string[] | undefined) {
   }
 
   const labels = tools.map(t => GATEWAY_TOOL_LABELS[t] ?? t)
-  const list = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+  const list = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} и ${labels[labels.length - 1]}`
 
   notify({
     durationMs: 8000,
     kind: 'info',
-    message: `${list} now run through your Nous subscription — no separate API keys needed.`,
-    title: 'Tool Gateway enabled'
+    message: `${list} теперь работают через вашу подписку Nous: отдельные API-ключи не нужны.`,
+    title: 'Tool Gateway включен'
   })
 }
 

@@ -46,13 +46,13 @@ export default function Success() {
           }
         >
           <span>
-            <span>Hermes is ready</span>
+            <span>Hermes RU Iola готов</span>
           </span>
-          <span aria-hidden="true">Hermes is ready</span>
+          <span aria-hidden="true">Hermes RU Iola готов</span>
         </p>
 
         <p className="m-0 text-center text-base leading-normal tracking-tight text-muted-foreground">
-          You can launch from here, or any time from your terminal with{' '}
+          Можно запустить отсюда или позже из терминала командой{' '}
           <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-sm">
             hermes desktop
           </code>
@@ -67,7 +67,7 @@ export default function Success() {
         className="inline-flex items-center gap-2 px-6"
       >
         <Rocket size={18} />
-        {launching ? 'Launching…' : 'Launch Hermes'}
+        {launching ? 'Запуск…' : 'Запустить Hermes'}
       </Button>
 
       {error && (
@@ -77,7 +77,7 @@ export default function Success() {
         >
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           <div className="min-w-0">
-            <div className="font-medium">Couldn&rsquo;t launch the desktop app</div>
+            <div className="font-medium">Не удалось запустить desktop-приложение</div>
             <div className="mt-1 text-destructive/80">{error}</div>
           </div>
         </div>
