@@ -1,11 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: 💬 Nous Research Discord
-    url: https://discord.gg/NousResearch
-    about: For quick questions, showcasing projects, sharing skills, and community chat.
-  - name: 📖 Documentation
-    url: https://github.com/NousResearch/hermes-agent/blob/main/README.md
-    about: Check the README and docs before opening an issue.
+  - name: 📖 README
+    url: https://github.com/yasg1988/iola-hermes/blob/main/README.md
+    about: Проверьте README перед созданием issue.
   - name: 🤝 Contributing Guide
-    url: https://github.com/NousResearch/hermes-agent/blob/main/CONTRIBUTING.md
-    about: Read this before submitting a PR.
+    url: https://github.com/yasg1988/iola-hermes/blob/main/CONTRIBUTING.md
+    about: Прочитайте перед отправкой PR.

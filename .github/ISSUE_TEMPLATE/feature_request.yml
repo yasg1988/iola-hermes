@@ -1,15 +1,15 @@
-name: "✨ Feature Request"
-description: Suggest a new feature or improvement.
-title: "[Feature]: "
+name: "✨ Предложение функции"
+description: Предложите новую функцию или улучшение.
+title: "[Функция]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the suggestion! Before submitting, please consider:
+        Спасибо за предложение. Перед отправкой проверьте:
 
-        - **Is this a new skill?** Most capabilities should be [skills, not tools](https://github.com/NousResearch/hermes-agent/blob/main/CONTRIBUTING.md#should-it-be-a-skill-or-a-tool). If it's a specialized integration (crypto, NFT, niche SaaS), it belongs on the Skills Hub, not bundled.
-        - **Search [existing issues](https://github.com/NousResearch/hermes-agent/issues)** — someone may have already proposed this.
+        - **Это новый skill?** Многие возможности лучше оформлять как skills, а не как встроенные инструменты.
+        - **Поищите в [существующих issues](https://github.com/yasg1988/iola-hermes/issues)** — возможно, это уже предложили.
 
   - type: textarea
     id: problem

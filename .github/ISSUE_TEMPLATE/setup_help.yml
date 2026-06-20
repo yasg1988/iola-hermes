@@ -1,19 +1,18 @@
-name: "🔧 Setup / Installation Help"
-description: Having trouble installing or configuring Hermes? Ask here.
-title: "[Setup]: "
+name: "🔧 Помощь с установкой"
+description: Проблемы с установкой или настройкой Hermes RU Iola.
+title: "[Установка]: "
 labels: ["setup"]
 body:
   - type: markdown
     attributes:
       value: |
-        Sorry you're having trouble! Please fill out the details below so we can help.
+        Опишите проблему с установкой или настройкой, чтобы мы могли помочь.
 
-        **Quick checks first:**
-        - Run `hermes debug share` and paste the links in the Debug Report section below
-        - If you're in a chat session, you can use `/debug` instead — it does the same thing
-        - Try `hermes update` to get the latest version
-        - Check the [README troubleshooting section](https://github.com/NousResearch/hermes-agent#troubleshooting)
-        - For general questions, consider the [Nous Research Discord](https://discord.gg/NousResearch) for faster help
+        **Быстрые проверки:**
+        - Запустите `hermes debug share` и вставьте ссылки в раздел Debug Report
+        - В интерактивной сессии можно использовать `/debug`
+        - Попробуйте `iola-hermes update`, чтобы получить последнюю версию
+        - Проверьте [README](https://github.com/yasg1988/iola-hermes#readme)
 
   - type: textarea
     id: description

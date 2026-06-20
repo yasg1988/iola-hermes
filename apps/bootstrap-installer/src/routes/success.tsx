@@ -5,7 +5,7 @@ import { launchHermesDesktop } from '../store'
 import { Rocket, AlertCircle } from 'lucide-react'
 
 /*
- * Success screen. HERMES AGENT wordmark stays as the visual anchor
+ * Success screen. Hermes RU Iola wordmark stays as the visual anchor
  * (same Collapse Bold treatment as Welcome + the desktop chat intro),
  * with a status line below.
  *
@@ -54,7 +54,7 @@ export default function Success() {
         <p className="m-0 text-center text-base leading-normal tracking-tight text-muted-foreground">
           Можно запустить отсюда или позже из терминала командой{' '}
           <code className="rounded bg-muted/60 px-1 py-0.5 font-mono text-sm">
-            hermes desktop
+            iola-hermes desktop
           </code>
           .
         </p>

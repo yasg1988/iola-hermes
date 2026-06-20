@@ -1,34 +1,34 @@
-## What does this PR do?
+## Что делает этот PR?
 
 <!-- Describe the change clearly. What problem does it solve? Why is this approach the right one? -->
 
 
 
-## Related Issue
+## Связанная issue
 
 <!-- Link the issue this PR addresses. If no issue exists, consider creating one first. -->
 
 Fixes #
 
-## Type of Change
+## Тип изменения
 
 <!-- Check the one that applies. -->
 
-- [ ] 🐛 Bug fix (non-breaking change that fixes an issue)
-- [ ] ✨ New feature (non-breaking change that adds functionality)
-- [ ] 🔒 Security fix
-- [ ] 📝 Documentation update
-- [ ] ✅ Tests (adding or improving test coverage)
-- [ ] ♻️ Refactor (no behavior change)
-- [ ] 🎯 New skill (bundled or hub)
+- [ ] 🐛 Исправление ошибки
+- [ ] ✨ Новая функция
+- [ ] 🔒 Исправление безопасности
+- [ ] 📝 Обновление документации
+- [ ] ✅ Тесты
+- [ ] ♻️ Рефакторинг без изменения поведения
+- [ ] 🎯 Новый skill
 
-## Changes Made
+## Что изменено
 
 <!-- List the specific changes. Include file paths for code changes. -->
 
 - 
 
-## How to Test
+## Как проверить
 
 <!-- Steps to verify this change works. For bugs: reproduction steps + proof that the fix works. -->
 
@@ -36,40 +36,40 @@ Fixes #
 2. 
 3. 
 
-## Checklist
+## Чеклист
 
 <!-- Complete these before requesting review. -->
 
-### Code
+### Код
 
-- [ ] I've read the [Contributing Guide](https://github.com/NousResearch/hermes-agent/blob/main/CONTRIBUTING.md)
-- [ ] My commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`fix(scope):`, `feat(scope):`, etc.)
-- [ ] I searched for [existing PRs](https://github.com/NousResearch/hermes-agent/pulls) to make sure this isn't a duplicate
-- [ ] My PR contains **only** changes related to this fix/feature (no unrelated commits)
-- [ ] I've run `pytest tests/ -q` and all tests pass
-- [ ] I've added tests for my changes (required for bug fixes, strongly encouraged for features)
-- [ ] I've tested on my platform: <!-- e.g. Ubuntu 24.04, macOS 15.2, Windows 11 -->
+- [ ] Я прочитал [Contributing Guide](https://github.com/yasg1988/iola-hermes/blob/main/CONTRIBUTING.md)
+- [ ] Сообщения коммитов следуют [Conventional Commits](https://www.conventionalcommits.org/)
+- [ ] Я проверил [существующие PR](https://github.com/yasg1988/iola-hermes/pulls), чтобы не создать дубль
+- [ ] PR содержит только изменения по этой задаче
+- [ ] Я запускал `pytest tests/ -q`, и тесты проходят
+- [ ] Я добавил или обновил тесты, если это нужно
+- [ ] Я проверил изменение на своей платформе
 
-### Documentation & Housekeeping
+### Документация и сопровождение
 
-<!-- Check all that apply. It's OK to check "N/A" if a category doesn't apply to your change. -->
+<!-- Отметьте подходящие пункты. Можно указать N/A, если пункт не относится к изменению. -->
 
-- [ ] I've updated relevant documentation (README, `docs/`, docstrings) — or N/A
-- [ ] I've updated `cli-config.yaml.example` if I added/changed config keys — or N/A
-- [ ] I've updated `CONTRIBUTING.md` or `AGENTS.md` if I changed architecture or workflows — or N/A
-- [ ] I've considered cross-platform impact (Windows, macOS) per the [compatibility guide](https://github.com/NousResearch/hermes-agent/blob/main/CONTRIBUTING.md#cross-platform-compatibility) — or N/A
-- [ ] I've updated tool descriptions/schemas if I changed tool behavior — or N/A
+- [ ] Обновлена документация (`README`, `docs/`, docstrings) — или N/A
+- [ ] Обновлен `cli-config.yaml.example`, если менялись настройки — или N/A
+- [ ] Обновлены `CONTRIBUTING.md` или `AGENTS.md`, если менялись архитектура или workflows — или N/A
+- [ ] Проверено влияние на Windows, Linux и macOS — или N/A
+- [ ] Обновлены описания/схемы инструментов, если менялось поведение — или N/A
 
-## For New Skills
+## Для новых skills
 
 <!-- Only fill this out if you're adding a skill. Delete this section otherwise. -->
 
-- [ ] This skill is **broadly useful** to most users (if bundled) — see [Contributing Guide](https://github.com/NousResearch/hermes-agent/blob/main/CONTRIBUTING.md#should-the-skill-be-bundled)
-- [ ] SKILL.md follows the [standard format](https://github.com/NousResearch/hermes-agent/blob/main/CONTRIBUTING.md#skillmd-format) (frontmatter, trigger conditions, steps, pitfalls)
-- [ ] No external dependencies that aren't already available (prefer stdlib, curl, existing Hermes tools)
-- [ ] I've tested the skill end-to-end: `hermes --toolsets skills -q "Use the X skill to do Y"`
+- [ ] Skill полезен большинству пользователей, если он добавляется в комплект
+- [ ] `SKILL.md` оформлен в стандартном формате
+- [ ] Нет лишних внешних зависимостей
+- [ ] Skill проверен end-to-end
 
-## Screenshots / Logs
+## Скриншоты / логи
 
 <!-- If applicable, add screenshots or log output showing the fix/feature in action. -->
 

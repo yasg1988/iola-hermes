@@ -1,15 +1,15 @@
 {
-  "id": "hermes-agent",
-  "name": "Hermes Agent",
+  "id": "iola-hermes",
+  "name": "Hermes RU Iola",
   "version": "0.17.0",
-  "description": "Self-improving open-source AI agent by Nous Research with ACP editor integration, persistent memory, skills, and rich tool support.",
-  "repository": "https://github.com/NousResearch/hermes-agent",
-  "website": "https://hermes-agent.nousresearch.com/docs/user-guide/features/acp",
-  "authors": ["Nous Research"],
+  "description": "Русскоязычный открытый ИИ-агент с ACP-интеграцией, постоянной памятью, навыками и расширенной поддержкой инструментов.",
+  "repository": "https://github.com/yasg1988/iola-hermes",
+  "website": "https://github.com/yasg1988/iola-hermes#readme",
+  "authors": ["Yakunin"],
   "license": "MIT",
   "distribution": {
     "uvx": {
-      "package": "hermes-agent[acp]==0.17.0",
+      "package": "iola-hermes[acp]==0.17.0",
       "args": ["hermes-acp"]
     }
   }

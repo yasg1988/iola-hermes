@@ -1,17 +1,17 @@
-name: "🐛 Bug Report"
-description: Report a bug — something that's broken, crashes, or behaves incorrectly.
-title: "[Bug]: "
+name: "🐛 Отчет об ошибке"
+description: Сообщите об ошибке, падении или неправильном поведении.
+title: "[Ошибка]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a bug! Please fill out the sections below so we can reproduce and fix it quickly.
+        Спасибо за сообщение об ошибке. Заполните разделы ниже, чтобы мы могли быстро воспроизвести и исправить проблему.
 
-        **Before submitting**, please:
-        - [ ] Search [existing issues](https://github.com/NousResearch/hermes-agent/issues) to avoid duplicates
-        - [ ] Update to the latest version (`hermes update`) and confirm the bug still exists
-        - [ ] Run `hermes debug share` and paste the links below (see Debug Report section)
+        **Перед отправкой:**
+        - [ ] Проверьте [существующие issues](https://github.com/yasg1988/iola-hermes/issues), чтобы не создать дубль
+        - [ ] Обновитесь до последней версии (`iola-hermes update`) и проверьте, что ошибка сохраняется
+        - [ ] Запустите `hermes debug share` и вставьте ссылки ниже в раздел Debug Report
 
   - type: textarea
     id: description

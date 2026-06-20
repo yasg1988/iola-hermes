@@ -18,14 +18,14 @@ permissions:
 
 jobs:
   check-freshness:
-    if: github.repository == 'NousResearch/hermes-agent'
+    if: github.repository == 'yasg1988/iola-hermes'
     runs-on: ubuntu-latest
     steps:
       - name: Probe live index
         id: probe
         run: |
           set -e
-          URL="https://hermes-agent.nousresearch.com/docs/api/skills-index.json"
+          URL="https://yasg1988.github.io/iola-hermes/docs/api/skills-index.json"
           echo "Probing $URL"
           # -L follows redirects; -f fails on HTTP errors; -s suppresses progress
           if ! curl -fsSL -o /tmp/skills-index.json "$URL"; then

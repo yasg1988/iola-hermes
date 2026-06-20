@@ -20,7 +20,7 @@
 Если CLI уже установлен:
 
 ```bash
-hermes desktop
+iola-hermes desktop
 ```
 
 Команда соберет и запустит GUI поверх текущей установки: та же конфигурация, ключи, сессии и навыки. При первом запуске Hermes поможет выбрать провайдера и модель.
@@ -34,7 +34,7 @@ hermes desktop
 Приложение проверяет обновления в фоне и предлагает обновиться в один клик. Из CLI можно обновиться вручную:
 
 ```bash
-hermes update
+iola-hermes update
 ```
 
 ## Требования
@@ -94,7 +94,7 @@ npm run test:desktop:all
 ```bash
 rm "$HOME/.hermes/hermes-agent/.hermes-bootstrap-complete"
 rm -rf "$HOME/.hermes/hermes-agent/venv"
-tccutil reset Microphone com.nousresearch.hermes
+tccutil reset Microphone ru.iola.hermes
 ```
 
 **Windows PowerShell:**

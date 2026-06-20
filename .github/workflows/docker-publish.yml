@@ -37,7 +37,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  IMAGE_NAME: nousresearch/hermes-agent
+  IMAGE_NAME: yasg1988/iola-hermes
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -46,8 +46,8 @@ jobs:
   # is the only arch we can `load` into the local daemon on an amd64 runner.
   # ---------------------------------------------------------------------------
   build-amd64:
-    # Only run on the upstream repository, not on forks
-    if: github.repository == 'NousResearch/hermes-agent'
+    # Only run on the public Hermes RU Iola repository, not on forks.
+    if: github.repository == 'yasg1988/iola-hermes'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -181,7 +181,7 @@ jobs:
   # smoke test, then on push/release push by digest.
   # ---------------------------------------------------------------------------
   build-arm64:
-    if: github.repository == 'NousResearch/hermes-agent'
+    if: github.repository == 'yasg1988/iola-hermes'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     outputs:
@@ -231,7 +231,7 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:test
           build-args: |
             HERMES_GIT_SHA=${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/nousresearch/hermes-agent:buildcache-arm64
+          cache-from: type=registry,ref=ghcr.io/yasg1988/iola-hermes:buildcache-arm64
 
       # Main/release builds read AND write the registry cache so the digest
       # push below reuses layers from this smoke-test build, and so the next
@@ -247,8 +247,8 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:test
           build-args: |
             HERMES_GIT_SHA=${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/nousresearch/hermes-agent:buildcache-arm64
-          cache-to: type=registry,ref=ghcr.io/nousresearch/hermes-agent:buildcache-arm64,mode=max
+          cache-from: type=registry,ref=ghcr.io/yasg1988/iola-hermes:buildcache-arm64
+          cache-to: type=registry,ref=ghcr.io/yasg1988/iola-hermes:buildcache-arm64,mode=max
 
       - name: Smoke test image
         uses: ./.github/actions/hermes-smoke-test
@@ -275,8 +275,8 @@ jobs:
           build-args: |
             HERMES_GIT_SHA=${{ github.sha }}
           outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=registry,ref=ghcr.io/nousresearch/hermes-agent:buildcache-arm64
-          cache-to: type=registry,ref=ghcr.io/nousresearch/hermes-agent:buildcache-arm64,mode=max
+          cache-from: type=registry,ref=ghcr.io/yasg1988/iola-hermes:buildcache-arm64
+          cache-to: type=registry,ref=ghcr.io/yasg1988/iola-hermes:buildcache-arm64,mode=max
 
       - name: Export digest
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
@@ -303,7 +303,7 @@ jobs:
   # On releases: tags :<release_tag_name>.
   # ---------------------------------------------------------------------------
   merge:
-    if: github.repository == 'NousResearch/hermes-agent' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release')
+    if: github.repository == 'yasg1988/iola-hermes' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release')
     runs-on: ubuntu-latest
     needs: [build-amd64, build-arm64]
     timeout-minutes: 10
