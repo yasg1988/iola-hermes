@@ -1,23 +1,11 @@
 name: OSV-Scanner
 
-# Scans lockfiles (uv.lock, package-lock.json) against the OSV vulnerability
-# database. Runs on every PR that touches a lockfile and on a weekly schedule
-# against main.
+# Сканирует lock-файлы (uv.lock, package-lock.json) по базе уязвимостей OSV.
+# Это диагностический workflow: он показывает найденные уязвимости в логах и
+# артефактах, но не должен блокировать релиз из-за уже известных зависимостей
+# или лимитов GitHub API.
 #
-# This is detection-only — OSV-Scanner does NOT open PRs or modify pins.
-# It reports known CVEs in currently-pinned dependency versions so we can
-# decide when and how to patch on our own schedule. Our pinning strategy
-# (full SHA / exact version) is preserved; only the notification signal
-# is added.
-#
-# Complements the existing supply-chain-audit.yml workflow (which scans
-# for malicious code patterns in PR diffs) by covering the orthogonal
-# "currently-pinned dep became known-vulnerable" case.
-#
-# Uses Google's officially-recommended reusable workflow, pinned by SHA.
-# Findings land in the repo's Security tab (Code Scanning > OSV-Scanner).
-# fail-on-vuln is disabled so the job does not block merges on pre-existing
-# vulnerabilities in pinned deps that we may need to patch deliberately.
+# OSV-Scanner не открывает PR и не меняет версии зависимостей.
 
 on:
   # No paths filter — the job must always run so the required check
@@ -40,10 +28,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  # Required by the reusable workflow to upload SARIF to the Security tab.
   actions: read
   contents: read
-  security-events: write
 
 jobs:
   scan:
@@ -57,3 +43,4 @@ jobs:
         --lockfile=package-lock.json
         --lockfile=website/package-lock.json
       fail-on-vuln: false
+      upload-sarif: false
