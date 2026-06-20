@@ -8,15 +8,29 @@ if (process.env.IOLA_HERMES_SKIP_PYTHON_INSTALL === '1') {
 }
 
 const spec = process.env.IOLA_HERMES_PYTHON_SPEC || 'git+https://github.com/yasg1988/iola-hermes.git'
-const candidates = process.platform === 'win32' ? ['py', 'python', 'python3'] : ['python3', 'python']
+const candidates =
+  process.platform === 'win32'
+    ? [
+        { command: 'py', prefix: ['-3.13'] },
+        { command: 'py', prefix: ['-3.12'] },
+        { command: 'py', prefix: ['-3.11'] },
+        { command: 'python', prefix: [] },
+        { command: 'python3', prefix: [] }
+      ]
+    : [
+        { command: 'python3', prefix: [] },
+        { command: 'python', prefix: [] }
+      ]
 
-for (const command of candidates) {
-  const probe = spawnSync(command, ['--version'], { stdio: 'ignore' })
+for (const candidate of candidates) {
+  const probe = spawnSync(candidate.command, [...candidate.prefix, '--version'], { stdio: 'ignore' })
   if (probe.error && probe.error.code === 'ENOENT') {
     continue
   }
 
-  const install = spawnSync(command, ['-m', 'pip', 'install', '--upgrade', spec], { stdio: 'inherit' })
+  const install = spawnSync(candidate.command, [...candidate.prefix, '-m', 'pip', 'install', '--upgrade', spec], {
+    stdio: 'inherit'
+  })
   if (install.error) {
     console.error(install.error.message)
     process.exit(1)
