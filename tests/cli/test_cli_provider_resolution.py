@@ -800,7 +800,13 @@ def test_cmd_model_forwards_nous_login_tls_options(monkeypatch):
     monkeypatch.setattr("hermes_cli.config.save_env_value", lambda key, value: None)
     monkeypatch.setattr("hermes_cli.auth.resolve_provider", lambda requested, **kwargs: "nous")
     monkeypatch.setattr("hermes_cli.auth.get_provider_auth_state", lambda provider_id: None)
-    monkeypatch.setattr(hermes_main, "_prompt_provider_choice", lambda choices, **kwargs: 0)
+    def _choose_nous(choices, **_kwargs):
+        for idx, choice in enumerate(choices):
+            if "Nous" in choice:
+                return idx
+        return 0
+
+    monkeypatch.setattr(hermes_main, "_prompt_provider_choice", _choose_nous)
 
     captured = {}
 

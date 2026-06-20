@@ -24,6 +24,7 @@ unchanged.
 from __future__ import annotations
 
 import os
+import ipaddress
 import sys
 import urllib.request
 from typing import Optional
@@ -146,6 +147,15 @@ def _host_matches(host: str, pattern: str) -> bool:
 def _is_iola_managed_proxy_bypassed(host: str) -> bool:
     if not host:
         return False
+    normalized = host.strip().lower().rstrip(".")
+    if normalized in {"localhost", "127.0.0.1", "::1"}:
+        return True
+    try:
+        address = ipaddress.ip_address(normalized.strip("[]"))
+        if address.is_loopback or address.is_private or address.is_link_local:
+            return True
+    except ValueError:
+        pass
     return any(_host_matches(host, pattern) for pattern in IOLA_MANAGED_PROXY_BYPASS_HOSTS)
 
 

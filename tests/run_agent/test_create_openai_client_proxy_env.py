@@ -205,6 +205,18 @@ def test_get_proxy_for_base_url_uses_iola_managed_proxy_by_default(monkeypatch):
     assert _get_proxy_for_base_url("https://openrouter.ai/api/v1") == IOLA_MANAGED_PROXY_URL
 
 
+def test_get_proxy_for_base_url_bypasses_local_and_private_managed_targets(monkeypatch):
+    for key in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
+                "https_proxy", "http_proxy", "all_proxy",
+                "NO_PROXY", "no_proxy", "IOLA_MANAGED_PROXY_DISABLED"):
+        monkeypatch.delenv(key, raising=False)
+    assert _get_proxy_for_base_url("http://127.0.0.1:11434/v1") is None
+    assert _get_proxy_for_base_url("http://localhost:11434/v1") is None
+    assert _get_proxy_for_base_url("http://10.0.0.5:8000/v1") is None
+    assert _get_proxy_for_base_url("http://192.168.1.10:8000/v1") is None
+    assert _get_proxy_for_base_url("http://[::1]:8000/v1") is None
+
+
 def test_get_proxy_for_base_url_bypasses_ru_providers(monkeypatch):
     for key in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
                 "https_proxy", "http_proxy", "all_proxy",

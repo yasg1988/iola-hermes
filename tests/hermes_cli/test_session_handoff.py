@@ -191,7 +191,7 @@ class TestHandoffCommandRegistration:
         cmd = resolve_command("handoff")
         assert cmd is not None
         assert cmd.name == "handoff"
-        assert cmd.category == "Session"
+        assert cmd.category == "Сессия"
 
     def test_command_is_cli_only(self):
         """`/handoff` is initiated from the CLI; gateway shouldn't expose it."""

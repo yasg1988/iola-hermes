@@ -98,9 +98,9 @@ def test_normalize_lang_accepts_aliases():
 
 
 def test_normalize_lang_unknown_falls_back():
-    assert i18n._normalize_lang("klingon") == "en"
-    assert i18n._normalize_lang("") == "en"
-    assert i18n._normalize_lang(None) == "en"
+    assert i18n._normalize_lang("klingon") == i18n.DEFAULT_LANGUAGE
+    assert i18n._normalize_lang("") == i18n.DEFAULT_LANGUAGE
+    assert i18n._normalize_lang(None) == i18n.DEFAULT_LANGUAGE
 
 
 def test_env_var_override(monkeypatch):
@@ -117,12 +117,12 @@ def test_env_var_normalized(monkeypatch):
 
 
 def test_default_when_nothing_set(monkeypatch):
-    """With no env var and no config override, falls back to English."""
+    """With no env var and no config override, falls back to Russian."""
     monkeypatch.delenv("HERMES_LANGUAGE", raising=False)
     # Force config lookup to return None -- patch the cached reader.
     i18n.reset_language_cache()
     monkeypatch.setattr(i18n, "_config_language_cached", lambda: None)
-    assert i18n.get_language() == "en"
+    assert i18n.get_language() == i18n.DEFAULT_LANGUAGE
 
 
 # ---------------------------------------------------------------------------
@@ -164,9 +164,11 @@ def test_t_missing_key_in_non_english_falls_back_to_english(tmp_path, monkeypatc
         i18n.reset_language_cache()
 
 
-def test_t_unknown_language_uses_english():
-    """Unknown lang codes normalize to English, not to a key-path fallback."""
-    assert i18n.t("approval.denied", lang="klingon") == i18n.t("approval.denied", lang="en")
+def test_t_unknown_language_uses_default():
+    """Unknown lang codes normalize to the default locale, not to a key-path fallback."""
+    assert i18n.t("approval.denied", lang="klingon") == i18n.t(
+        "approval.denied", lang=i18n.DEFAULT_LANGUAGE
+    )
 
 
 # ---------------------------------------------------------------------------

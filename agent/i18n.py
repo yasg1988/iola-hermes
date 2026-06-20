@@ -23,9 +23,11 @@ Language resolution order:
     1. Explicit ``lang=`` argument passed to :func:`t`
     2. ``HERMES_LANGUAGE`` environment variable (for tests / quick override)
     3. ``display.language`` from config.yaml
-    4. ``"en"`` (baseline)
+    4. ``"ru"`` (Hermes RU Iola baseline)
 
-Supported languages: en, zh, ja, de, es, fr, tr, uk.  Unknown values fall back to en.
+Missing catalog keys always fall back to English before returning the key path.
+Supported languages: en, zh, ja, de, es, fr, tr, uk, ru, and others listed below.
+Unknown values fall back to the default language.
 """
 
 from __future__ import annotations
@@ -45,6 +47,7 @@ SUPPORTED_LANGUAGES: tuple[str, ...] = (
     "af", "ko", "it", "ga", "pt", "ru", "hu",
 )
 DEFAULT_LANGUAGE = "ru"
+FALLBACK_LANGUAGE = "en"
 
 # Accept a few natural aliases so users who type "chinese" / "zh-CN" / "jp"
 # get the right catalog instead of silently falling back to English.
@@ -271,9 +274,9 @@ def t(key: str, lang: str | None = None, **format_kwargs: Any) -> str:
     catalog = _load_catalog(target)
     value = catalog.get(key)
 
-    if value is None and target != DEFAULT_LANGUAGE:
+    if value is None and target != FALLBACK_LANGUAGE:
         # Fall through to English rather than showing a key path to the user.
-        value = _load_catalog(DEFAULT_LANGUAGE).get(key)
+        value = _load_catalog(FALLBACK_LANGUAGE).get(key)
 
     if value is None:
         # Last-ditch: return the key itself.  A broken catalog should not

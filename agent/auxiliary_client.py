@@ -1497,7 +1497,17 @@ def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
             _client = _maybe_wrap_anthropic(_client, model, api_key, raw_base_url)
             return _client, model
 
-        creds = resolve_api_key_provider_credentials(provider_id)
+        try:
+            creds = resolve_api_key_provider_credentials(provider_id)
+        except Exception as exc:
+            try:
+                from hermes_cli.auth import AuthError
+            except Exception:
+                AuthError = ()  # type: ignore[assignment]
+            if AuthError and isinstance(exc, AuthError):
+                logger.debug("Auxiliary text client: skipping %s (%s)", provider_id, exc)
+                continue
+            raise
         api_key = str(creds.get("api_key", "")).strip()
         if not api_key:
             continue
