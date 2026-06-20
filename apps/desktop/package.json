@@ -2,7 +2,7 @@
   "name": "iola-hermes-desktop",
   "productName": "Hermes RU Iola",
   "private": true,
-  "version": "0.17.0",
+  "version": "0.14.0",
   "description": "Desktop-приложение Hermes RU Iola.",
   "author": "Yakunin",
   "type": "module",
