@@ -38,6 +38,8 @@ concurrency:
 
 env:
   IMAGE_NAME: yasg1988/iola-hermes
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -52,6 +54,7 @@ jobs:
     timeout-minutes: 45
     outputs:
       digest: ${{ steps.push.outputs.digest }}
+      publish: ${{ steps.publish-gate.outputs.enabled }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -130,19 +133,29 @@ jobs:
           source .venv/bin/activate
           python -m pytest tests/docker/ -v --tb=short
 
+      - name: Check Docker Hub publishing
+        id: publish-gate
+        run: |
+          if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Docker Hub secrets are not configured; skipping image push."
+          fi
+
       - name: Log in to Docker Hub
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4.1.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       # Push amd64 by digest only (no tag).  The merge job assembles the
       # tagged manifest list.  `push-by-digest=true` is docker's recommended
       # pattern for multi-runner multi-platform builds.
       - name: Push amd64 by digest
         id: push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7.1.0
         with:
           context: .
@@ -159,14 +172,14 @@ jobs:
       # Write the digest to a file and upload it as an artifact so the
       # merge job can stitch both per-arch digests into a manifest list.
       - name: Export digest
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: digest-amd64
@@ -186,6 +199,7 @@ jobs:
     timeout-minutes: 45
     outputs:
       digest: ${{ steps.push.outputs.digest }}
+      publish: ${{ steps.publish-gate.outputs.enabled }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -255,16 +269,26 @@ jobs:
         with:
           image: ${{ env.IMAGE_NAME }}:test
 
+      - name: Check Docker Hub publishing
+        id: publish-gate
+        run: |
+          if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Docker Hub secrets are not configured; skipping image push."
+          fi
+
       - name: Log in to Docker Hub
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4.1.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Push arm64 by digest
         id: push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7.1.0
         with:
           context: .
@@ -279,14 +303,14 @@ jobs:
           cache-to: type=registry,ref=ghcr.io/yasg1988/iola-hermes:buildcache-arm64,mode=max
 
       - name: Export digest
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && steps.publish-gate.outputs.enabled == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: digest-arm64
@@ -303,7 +327,7 @@ jobs:
   # On releases: tags :<release_tag_name>.
   # ---------------------------------------------------------------------------
   merge:
-    if: github.repository == 'yasg1988/iola-hermes' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release')
+    if: github.repository == 'yasg1988/iola-hermes' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') && needs.build-amd64.outputs.publish == 'true' && needs.build-arm64.outputs.publish == 'true'
     runs-on: ubuntu-latest
     needs: [build-amd64, build-arm64]
     timeout-minutes: 10
@@ -321,8 +345,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4.1.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
