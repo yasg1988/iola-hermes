@@ -94,6 +94,12 @@ DEFAULT_COPILOT_ACP_BASE_URL = "acp://copilot"
 DEFAULT_OLLAMA_CLOUD_BASE_URL = "https://ollama.com/v1"
 STEPFUN_STEP_PLAN_INTL_BASE_URL = "https://api.stepfun.ai/step_plan/v1"
 STEPFUN_STEP_PLAN_CN_BASE_URL = "https://api.stepfun.com/step_plan/v1"
+DEFAULT_YANDEXGPT_BASE_URL = "https://ai.api.cloud.yandex.net/v1"
+DEFAULT_GIGACHAT_BASE_URL = "https://gigachat.devices.sberbank.ru/api/v1"
+DEFAULT_GIGACHAT_OAUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+DEFAULT_GIGACHAT_SCOPE = "GIGACHAT_API_PERS"
+GIGACHAT_ACCESS_TOKEN_TTL_SECONDS = 30 * 60
+GIGACHAT_ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 120
 CODEX_OAUTH_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CODEX_OAUTH_TOKEN_URL = "https://auth.openai.com/oauth/token"
 CODEX_ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 120
@@ -171,6 +177,22 @@ class ProviderConfig:
 
 
 PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
+    "yandexgpt": ProviderConfig(
+        id="yandexgpt",
+        name="YandexGPT",
+        auth_type="api_key",
+        inference_base_url=DEFAULT_YANDEXGPT_BASE_URL,
+        api_key_env_vars=("YANDEX_API_KEY", "YANDEXGPT_API_KEY"),
+        base_url_env_var="YANDEXGPT_BASE_URL",
+    ),
+    "gigachat": ProviderConfig(
+        id="gigachat",
+        name="GigaChat",
+        auth_type="api_key",
+        inference_base_url=DEFAULT_GIGACHAT_BASE_URL,
+        api_key_env_vars=("GIGACHAT_AUTH_KEY", "GIGACHAT_ACCESS_TOKEN"),
+        base_url_env_var="GIGACHAT_BASE_URL",
+    ),
     "nous": ProviderConfig(
         id="nous",
         name="Nous Portal",
@@ -605,6 +627,120 @@ def _resolve_api_key_provider_secret(
         pass
 
     return "", ""
+
+
+# =============================================================================
+# GigaChat OAuth token exchange
+# =============================================================================
+
+_GIGACHAT_TOKEN_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _gigachat_cache_key(auth_key: str, oauth_url: str, scope: str) -> str:
+    digest = hashlib.sha256(auth_key.encode("utf-8")).hexdigest()
+    return f"{oauth_url}|{scope}|{digest}"
+
+
+def _gigachat_auth_header(auth_key: str) -> str:
+    cleaned = auth_key.strip()
+    if cleaned.lower().startswith(("basic ", "bearer ")):
+        return cleaned
+    return f"Basic {cleaned}"
+
+
+def _gigachat_token_expires_at(payload: dict[str, Any]) -> float:
+    raw = payload.get("expires_at") or payload.get("expiresAt") or payload.get("expires")
+    try:
+        expires = float(raw)
+        if expires > 10_000_000_000:
+            expires = expires / 1000.0
+        if expires > time.time():
+            return expires
+    except Exception:
+        pass
+    return time.time() + GIGACHAT_ACCESS_TOKEN_TTL_SECONDS
+
+
+def resolve_gigachat_access_token(
+    auth_key: str,
+    *,
+    oauth_url: str = "",
+    scope: str = "",
+    timeout: float = 15.0,
+) -> Dict[str, Any]:
+    """Exchange a GigaChat authorization key for a short-lived access token."""
+    cleaned_auth_key = (auth_key or "").strip()
+    if not has_usable_secret(cleaned_auth_key):
+        raise AuthError(
+            "GigaChat authorization key is missing. Set GIGACHAT_AUTH_KEY.",
+            provider="gigachat",
+            code="missing_api_key",
+        )
+
+    from hermes_cli.config import get_env_value
+
+    effective_oauth_url = (
+        oauth_url
+        or get_env_value("GIGACHAT_OAUTH_URL")
+        or os.getenv("GIGACHAT_OAUTH_URL", "")
+        or DEFAULT_GIGACHAT_OAUTH_URL
+    ).strip()
+    effective_scope = (
+        scope
+        or get_env_value("GIGACHAT_SCOPE")
+        or os.getenv("GIGACHAT_SCOPE", "")
+        or DEFAULT_GIGACHAT_SCOPE
+    ).strip()
+    cache_key = _gigachat_cache_key(cleaned_auth_key, effective_oauth_url, effective_scope)
+    cached = _GIGACHAT_TOKEN_CACHE.get(cache_key)
+    now = time.time()
+    if cached and float(cached.get("expires_at", 0)) - GIGACHAT_ACCESS_TOKEN_REFRESH_SKEW_SECONDS > now:
+        return dict(cached)
+
+    try:
+        response = httpx.post(
+            effective_oauth_url,
+            data={"scope": effective_scope},
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "RqUID": str(uuid.uuid4()),
+                "Authorization": _gigachat_auth_header(cleaned_auth_key),
+            },
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except httpx.HTTPError as exc:
+        raise AuthError(
+            f"GigaChat OAuth token request failed: {exc}",
+            provider="gigachat",
+            code="gigachat_oauth_failed",
+        ) from exc
+    except Exception as exc:
+        raise AuthError(
+            f"GigaChat OAuth response could not be parsed: {exc}",
+            provider="gigachat",
+            code="gigachat_oauth_invalid_response",
+        ) from exc
+
+    token = str(payload.get("access_token") or payload.get("accessToken") or "").strip()
+    if not has_usable_secret(token):
+        raise AuthError(
+            "GigaChat OAuth response did not include an access token.",
+            provider="gigachat",
+            code="gigachat_oauth_missing_token",
+        )
+
+    resolved = {
+        "provider": "gigachat",
+        "api_key": token,
+        "source": "GIGACHAT_AUTH_KEY/oauth",
+        "expires_at": _gigachat_token_expires_at(payload),
+        "scope": effective_scope,
+    }
+    _GIGACHAT_TOKEN_CACHE[cache_key] = dict(resolved)
+    return resolved
 
 
 # =============================================================================
@@ -1512,6 +1648,10 @@ def resolve_provider(
     _PROVIDER_ALIASES = {
         "glm": "zai", "z-ai": "zai", "z.ai": "zai", "zhipu": "zai",
         "google": "gemini", "google-gemini": "gemini", "google-ai-studio": "gemini",
+        "yandex": "yandexgpt", "yandex-gpt": "yandexgpt", "yandex-ai-studio": "yandexgpt",
+        "yandex-cloud": "yandexgpt",
+        "giga": "gigachat", "sber": "gigachat", "sberbank": "gigachat",
+        "sber-gigachat": "gigachat",
         "x-ai": "xai", "x.ai": "xai", "grok": "xai",
         "xai-oauth": "xai-oauth", "x-ai-oauth": "xai-oauth",
         "grok-oauth": "xai-oauth", "xai-grok-oauth": "xai-oauth",
@@ -6097,6 +6237,10 @@ def get_api_key_provider_status(provider_id: str) -> Dict[str, Any]:
 
     if provider_id in {"kimi-coding", "kimi-coding-cn"}:
         base_url = _resolve_kimi_base_url(api_key, pconfig.inference_base_url, env_url)
+    elif provider_id == "gigachat":
+        # GigaChat can be configured either with a long-lived authorization key
+        # (preferred; exchanged at runtime) or with a pre-issued access token.
+        base_url = env_url.rstrip("/") if env_url else pconfig.inference_base_url
     elif env_url:
         base_url = env_url
     else:
@@ -6284,6 +6428,26 @@ def resolve_api_key_provider_credentials(provider_id: str) -> Dict[str, Any]:
     if pconfig.base_url_env_var:
         env_url = os.getenv(pconfig.base_url_env_var, "").strip()
 
+    if provider_id == "gigachat":
+        if key_source == "GIGACHAT_ACCESS_TOKEN":
+            runtime_key = api_key
+            runtime_source = key_source
+            expires_at = None
+        else:
+            token_creds = resolve_gigachat_access_token(api_key)
+            runtime_key = token_creds["api_key"]
+            runtime_source = token_creds.get("source") or key_source
+            expires_at = token_creds.get("expires_at")
+        base_url = env_url.rstrip("/") if env_url else pconfig.inference_base_url
+        result = {
+            "provider": provider_id,
+            "api_key": runtime_key,
+            "base_url": base_url.rstrip("/"),
+            "source": runtime_source or "default",
+        }
+        if expires_at:
+            result["expires_at"] = expires_at
+        return result
     if provider_id in {"kimi-coding", "kimi-coding-cn"}:
         base_url = _resolve_kimi_base_url(api_key, pconfig.inference_base_url, env_url)
     elif provider_id == "zai":

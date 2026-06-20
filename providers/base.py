@@ -95,6 +95,14 @@ class ProviderProfile:
 
     # ── Hooks (override in subclass for complex providers) ───
 
+    def get_default_headers(self) -> dict[str, str]:
+        """Return client/model-list headers for this provider.
+
+        Subclasses can derive headers from saved env settings without mutating
+        the static ``default_headers`` field.
+        """
+        return dict(self.default_headers)
+
     def get_hostname(self) -> str:
         """Return the provider's base hostname for URL-based detection.
 
@@ -204,7 +212,7 @@ class ProviderProfile:
         # the default ``Python-urllib/<ver>`` User-Agent.  Set a generic
         # hermes-cli UA so the catalog endpoint is reachable.
         req.add_header("User-Agent", _profile_user_agent())
-        for k, v in self.default_headers.items():
+        for k, v in self.get_default_headers().items():
             req.add_header(k, v)
 
         try:

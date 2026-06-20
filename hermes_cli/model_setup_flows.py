@@ -2337,6 +2337,31 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
     if abort:
         return
 
+    yandex_folder_id = ""
+    if provider_id == "yandexgpt":
+        yandex_folder_id = (
+            get_env_value("YANDEX_FOLDER_ID")
+            or os.getenv("YANDEX_FOLDER_ID", "")
+            or get_env_value("YANDEX_CLOUD_FOLDER_ID")
+            or os.getenv("YANDEX_CLOUD_FOLDER_ID", "")
+            or get_env_value("YC_FOLDER_ID")
+            or os.getenv("YC_FOLDER_ID", "")
+        ).strip()
+        if yandex_folder_id:
+            print(f"  Yandex folder ID: {yandex_folder_id} ✓")
+        else:
+            try:
+                yandex_folder_id = input("Yandex Cloud folder ID: ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return
+            if not yandex_folder_id:
+                print("  Cancelled: YANDEX_FOLDER_ID is required for YandexGPT.")
+                return
+            save_env_value("YANDEX_FOLDER_ID", yandex_folder_id)
+            print("  ✓ Yandex folder ID saved.")
+        print()
+
     # Gemini free-tier gate: free-tier daily quotas (<= 250 RPD for Flash)
     # are exhausted in a handful of agent turns, so refuse to wire up the
     # provider with a free-tier key. Probe is best-effort; network or auth
@@ -2548,6 +2573,13 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
         ]
         current_model = normalize_opencode_model_id(provider_id, current_model)
         model_list = list(dict.fromkeys(mid for mid in model_list if mid))
+    elif provider_id == "yandexgpt" and yandex_folder_id:
+        model_list = [
+            mid.replace("{folder_id}", yandex_folder_id)
+            for mid in model_list
+            if isinstance(mid, str)
+        ]
+        current_model = current_model.replace("{folder_id}", yandex_folder_id)
 
     if model_list:
         selected = _prompt_model_selection(

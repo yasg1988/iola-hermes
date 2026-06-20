@@ -173,6 +173,16 @@ def _xai_curated_models() -> list[str]:
 
 
 _PROVIDER_MODELS: dict[str, list[str]] = {
+    "yandexgpt": [
+        "gpt://{folder_id}/yandexgpt/latest",
+        "gpt://{folder_id}/yandexgpt-lite/latest",
+        "gpt://{folder_id}/yandexgpt-pro/latest",
+    ],
+    "gigachat": [
+        "GigaChat",
+        "GigaChat-Pro",
+        "GigaChat-Max",
+    ],
     "nous": [
         # Anthropic
         "anthropic/claude-opus-4.8",
@@ -1012,6 +1022,8 @@ class ProviderEntry(NamedTuple):
     tui_desc: str   # detailed description for `hermes model` TUI
 
 CANONICAL_PROVIDERS: list[ProviderEntry] = [
+    ProviderEntry("yandexgpt",     "YandexGPT",                "YandexGPT (Yandex Cloud AI Studio, API key + folder ID)"),
+    ProviderEntry("gigachat",      "GigaChat",                 "GigaChat (Sber GigaChat API, authorization key)"),
     ProviderEntry("nous",           "Nous Portal",              "Nous Portal (Everything your agent needs, 300+ models with bundled tool use)"),
     ProviderEntry("openrouter",     "OpenRouter",               "OpenRouter (Pay-per-use API aggregator)"),
     ProviderEntry("novita",         "NovitaAI",                 "NovitaAI (Cloud: Model API, Agent Sandbox, GPU Cloud)"),

@@ -1484,8 +1484,10 @@ def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
                 try:
                     from providers import get_provider_profile as _gpf_aux
                     _ph_aux = _gpf_aux(provider_id)
-                    if _ph_aux and _ph_aux.default_headers:
-                        extra["default_headers"] = dict(_ph_aux.default_headers)
+                    if _ph_aux:
+                        _profile_headers = _ph_aux.get_default_headers()
+                        if _profile_headers:
+                            extra["default_headers"] = _profile_headers
                 except Exception:
                     pass
             _merged_aux = _apply_user_default_headers(extra.get("default_headers"))
@@ -1524,8 +1526,10 @@ def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
             try:
                 from providers import get_provider_profile as _gpf_aux2
                 _ph_aux2 = _gpf_aux2(provider_id)
-                if _ph_aux2 and _ph_aux2.default_headers:
-                    extra["default_headers"] = dict(_ph_aux2.default_headers)
+                if _ph_aux2:
+                    _profile_headers = _ph_aux2.get_default_headers()
+                    if _profile_headers:
+                        extra["default_headers"] = _profile_headers
             except Exception:
                 pass
         _merged_aux2 = _apply_user_default_headers(extra.get("default_headers"))
@@ -3424,8 +3428,10 @@ def _to_async_client(sync_client, model: str, is_vision: bool = False):
             _inferred = _infer_provider_from_url(sync_base_url)
             if _inferred:
                 _ph_async = _gpf_async(_inferred)
-                if _ph_async and _ph_async.default_headers:
-                    async_kwargs["default_headers"] = dict(_ph_async.default_headers)
+                if _ph_async:
+                    _profile_headers = _ph_async.get_default_headers()
+                    if _profile_headers:
+                        async_kwargs["default_headers"] = _profile_headers
         except Exception:
             pass
     _merged_async = _apply_user_default_headers(async_kwargs.get("default_headers"))
@@ -3715,8 +3721,10 @@ def resolve_provider_client(
                 try:
                     from providers import get_provider_profile as _gpf_custom
                     _ph_custom = _gpf_custom(provider)
-                    if _ph_custom and _ph_custom.default_headers:
-                        extra["default_headers"] = dict(_ph_custom.default_headers)
+                    if _ph_custom:
+                        _profile_headers = _ph_custom.get_default_headers()
+                        if _profile_headers:
+                            extra["default_headers"] = _profile_headers
                 except Exception:
                     pass
             _merged_custom = _apply_user_default_headers(extra.get("default_headers"))
@@ -3970,8 +3978,8 @@ def resolve_provider_client(
             try:
                 from providers import get_provider_profile as _gpf_main
                 _ph_main = _gpf_main(provider)
-                if _ph_main and _ph_main.default_headers:
-                    headers.update(_ph_main.default_headers)
+                if _ph_main:
+                    headers.update(_ph_main.get_default_headers())
             except Exception:
                 pass
         _merged_main = _apply_user_default_headers(headers)

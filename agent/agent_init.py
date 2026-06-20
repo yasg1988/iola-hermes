@@ -786,8 +786,10 @@ def init_agent(
                 try:
                     from providers import get_provider_profile as _gpf
                     _ph = _gpf(agent.provider)
-                    if _ph and _ph.default_headers:
-                        client_kwargs["default_headers"] = dict(_ph.default_headers)
+                    if _ph:
+                        _profile_headers = _ph.get_default_headers()
+                        if _profile_headers:
+                            client_kwargs["default_headers"] = _profile_headers
                 except Exception:
                     pass
         else:
