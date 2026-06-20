@@ -601,14 +601,14 @@ def run_uninstall(args):
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.MAGENTA, Colors.BOLD))
-    print(color("│            ⚕ Hermes Agent Uninstaller                  │", Colors.MAGENTA, Colors.BOLD))
+    print(color("│          ⚕ Удаление Hermes RU Iola                    │", Colors.MAGENTA, Colors.BOLD))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.MAGENTA, Colors.BOLD))
     print()
     
     # Show what will be affected
-    print(color("Current Installation:", Colors.CYAN, Colors.BOLD))
-    print(f"  Code:    {project_root}")
-    print(f"  Config:  {hermes_home / 'config.yaml'}")
+    print(color("Текущая установка:", Colors.CYAN, Colors.BOLD))
+    print(f"  Код:     {project_root}")
+    print(f"  Конфиг:  {hermes_home / 'config.yaml'}")
     print(f"  Secrets: {hermes_home / '.env'}")
     print(f"  Data:    {hermes_home / 'cron/'}, {hermes_home / 'sessions/'}, {hermes_home / 'logs/'}")
     print()
@@ -876,10 +876,10 @@ def _perform_uninstall(
         print(color("Open a new terminal (PowerShell / Windows Terminal) to pick up", Colors.YELLOW))
         print(color("the updated User PATH and environment variables.", Colors.YELLOW))
     else:
-        print(color("Reload your shell to complete the process:", Colors.YELLOW))
+        print(color("Перезапустите shell, чтобы завершить процесс:", Colors.YELLOW))
         print("  source ~/.bashrc  # or ~/.zshrc")
     print()
-    print("Thank you for using Hermes Agent! ⚕")
+    print("Спасибо, что использовали Hermes RU Iola! ⚕")
     print()
 
 
