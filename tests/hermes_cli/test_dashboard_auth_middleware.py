@@ -438,9 +438,9 @@ def test_gated_zero_providers_login_page_renders_help_text():
         # so we can't grep for the exact phrase; check for the canonical
         # fragments instead.)
         text = r.text.lower()
-        assert "sign-in unavailable" in text
-        assert "no authentication" in text
-        assert "providers are installed" in text
+        assert "вход недоступен" in text
+        assert "провайдеры авторизации не установлены" in text
+        assert "провайдер авторизации" in text
         assert "--insecure" in text
     finally:
         web_server.app.state.auth_required = prev_required

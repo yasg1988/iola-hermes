@@ -1636,9 +1636,7 @@ class TestWebServerEndpoints:
         assert weixin["name"] == "Weixin / WeChat (Personal)"
         assert "personal WeChat" in weixin["description"]
         assert "Official Account" not in f"{weixin['name']} {weixin['description']}"
-        assert weixin["docs_url"] == (
-            "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/weixin/"
-        )
+        assert weixin["docs_url"] == "https://github.com/yasg1988/iola-hermes#readme"
 
         fields = {field["key"]: field for field in weixin["env_vars"]}
         for key in ("WEIXIN_ACCOUNT_ID", "WEIXIN_TOKEN", "WEIXIN_BASE_URL"):

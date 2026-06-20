@@ -10,7 +10,7 @@ def test_version_command_is_registered():
     cmd = resolve_command("version")
     assert cmd is not None
     assert cmd.name == "version"
-    assert cmd.category == "Info"
+    assert cmd.category == "Справка"
     assert resolve_command("v") is cmd
 
 

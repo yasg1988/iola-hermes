@@ -51,6 +51,9 @@ iola-hermes
 Проект требует Python `>=3.11,<3.14`. На Windows рекомендуется Python 3.13,
 если Python 3.14 уже установлен как версия по умолчанию.
 
+Для нативной установки на Windows используйте PowerShell-скрипт
+`scripts/install.ps1`.
+
 ## Desktop
 
 Desktop-приложение основано на Electron-сборке upstream Hermes. Имя приложения,
