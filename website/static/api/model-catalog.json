@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "updated_at": "2026-06-16T18:04:33Z",
+  "updated_at": "2026-06-20T21:03:40Z",
   "metadata": {
     "source": "hermes-agent repo",
-    "docs": "https://hermes-agent.nousresearch.com/docs/reference/model-catalog"
+    "docs": "https://github.com/yasg1988/iola-hermes#readme"
   },
   "providers": {
     "openrouter": {

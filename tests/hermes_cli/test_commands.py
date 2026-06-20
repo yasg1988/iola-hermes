@@ -68,7 +68,14 @@ class TestCommandRegistry:
                         f"Alias '{alias}' of '{cmd.name}' shadows canonical '{target.name}'"
 
     def test_every_entry_has_valid_category(self):
-        valid_categories = {"Session", "Configuration", "Tools & Skills", "Info", "Exit"}
+        valid_categories = {
+            "Сессия",
+            "Настройки",
+            "Инструменты и навыки",
+            "Инфо",
+            "Справка",
+            "Выход",
+        }
         for cmd in COMMAND_REGISTRY:
             assert cmd.category in valid_categories, f"{cmd.name} has invalid category '{cmd.category}'"
 
@@ -524,7 +531,7 @@ class TestSlashCommandCompleter:
     def test_builtin_completion_display_meta_shows_description(self):
         completions = _completions(SlashCommandCompleter(), "/help")
         assert len(completions) == 1
-        assert completions[0].display_meta_text == "Show available commands"
+        assert completions[0].display_meta_text == "Показать доступные команды"
 
     # -- exact-match trailing space --------------------------------------
 
