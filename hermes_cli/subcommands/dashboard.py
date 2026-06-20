@@ -19,41 +19,35 @@ def build_dashboard_parser(
     # =========================================================================
     dashboard_parser = subparsers.add_parser(
         "dashboard",
-        help="Start the web UI dashboard",
-        description="Launch the Hermes Agent web dashboard for managing config, API keys, and sessions",
+        help="Запустить web-панель управления",
+        description="Запустить web-панель Hermes RU Iola для конфигурации, API-ключей и сессий",
     )
     dashboard_parser.add_argument(
-        "--port", type=int, default=9119, help="Port (default 9119, 0 for auto-assign by OS)"
+        "--port", type=int, default=9119, help="Порт (9119 по умолчанию, 0 для автоназначения)"
     )
     dashboard_parser.add_argument(
-        "--host", default="127.0.0.1", help="Host (default 127.0.0.1)"
+        "--host", default="127.0.0.1", help="Host (127.0.0.1 по умолчанию)"
     )
     dashboard_parser.add_argument(
-        "--no-open", action="store_true", help="Don't open browser automatically"
+        "--no-open", action="store_true", help="Не открывать браузер автоматически"
     )
     dashboard_parser.add_argument(
         "--insecure",
         action="store_true",
-        help="Allow binding to non-localhost (DANGEROUS: exposes API keys on the network)",
+        help="Разрешить bind не только на localhost (ОПАСНО: открывает API-ключи в сеть)",
     )
     dashboard_parser.add_argument(
         "--skip-build",
         action="store_true",
         help=(
-            "Skip the web UI build step and serve the existing dist directly. "
-            "Useful for non-interactive contexts (Windows Scheduled Tasks, CI) "
-            "where npm may not be available. Pre-build with: cd web && npm run build"
+            "Пропустить сборку web UI и отдавать существующий dist."
         ),
     )
     dashboard_parser.add_argument(
         "--isolated",
         action="store_true",
         help=(
-            "When launched from a named profile (e.g. `worker dashboard`), run "
-            "a dedicated dashboard server scoped to that profile instead of "
-            "routing to the machine dashboard. Default behavior is unified: "
-            "profile launches attach to (or start) ONE machine-level dashboard "
-            "and preselect the profile in the UI's profile switcher."
+            "При запуске из именованного профиля поднять отдельный dashboard для этого профиля."
         ),
     )
     # Internal flag set by the unified-launch re-exec (cmd_dashboard) to
@@ -74,12 +68,12 @@ def build_dashboard_parser(
     dashboard_parser.add_argument(
         "--stop",
         action="store_true",
-        help="Stop all running hermes dashboard processes and exit",
+        help="Остановить все запущенные процессы hermes dashboard и выйти",
     )
     dashboard_parser.add_argument(
         "--status",
         action="store_true",
-        help="List running hermes dashboard processes and exit",
+        help="Показать запущенные процессы hermes dashboard и выйти",
     )
     # Backward-compat shim: older Hermes desktop app shells (<= 0.15.x) spawn the
     # backend as `hermes dashboard --no-open --tui --host ... --port ...`. The
@@ -107,26 +101,23 @@ def build_dashboard_parser(
     )
     dashboard_register_parser = dashboard_subparsers.add_parser(
         "register",
-        help="Register a self-hosted dashboard with Nous Portal (writes the OAuth client ID to .env)",
+        help="Зарегистрировать self-hosted dashboard в Nous Portal",
         description=(
-            "Register this install as a self-hosted dashboard with your Nous "
-            "Portal account. Creates an OAuth client, writes "
-            "HERMES_DASHBOARD_OAUTH_CLIENT_ID into ~/.hermes/.env, and prints "
-            "how to engage the login gate. Requires being logged in (hermes setup)."
+            "Зарегистрировать эту установку как self-hosted dashboard, создать OAuth client "
+            "и записать HERMES_DASHBOARD_OAUTH_CLIENT_ID в ~/.hermes/.env."
         ),
     )
     dashboard_register_parser.add_argument(
         "--name",
         default=None,
-        help="Human-readable label for the dashboard (default: an auto-generated name)",
+        help="Человекочитаемое имя dashboard",
     )
     dashboard_register_parser.add_argument(
         "--redirect-uri",
         dest="redirect_uri",
         default=None,
         help=(
-            "Optional public HTTPS OAuth redirect URI for the dashboard, e.g. "
-            "https://hermes.example.com/auth/callback. Omit for localhost-only use."
+            "Опциональный публичный HTTPS OAuth redirect URI для dashboard."
         ),
     )
     dashboard_register_parser.add_argument(
@@ -134,10 +125,7 @@ def build_dashboard_parser(
         dest="portal_url",
         default=None,
         help=(
-            "Override the Nous Portal base URL for registration (default: the "
-            "portal you logged into). The access token must be valid at this "
-            "portal. Also settable via HERMES_DASHBOARD_PORTAL_URL. Mainly for "
-            "testing against a staging/preview portal."
+            "Переопределить base URL Nous Portal для регистрации."
         ),
     )
     dashboard_register_parser.set_defaults(func=cmd_dashboard_register)

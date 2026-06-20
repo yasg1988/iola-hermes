@@ -16,57 +16,53 @@ def build_model_parser(subparsers, *, cmd_model: Callable) -> None:
     # =========================================================================
     model_parser = subparsers.add_parser(
         "model",
-        help="Select default model and provider",
-        description="Interactively select your inference provider and default model",
+        help="Выбрать модель и провайдера по умолчанию",
+        description="Интерактивно выбрать провайдера инференса и модель по умолчанию",
     )
     model_parser.add_argument(
         "--refresh",
         action="store_true",
-        help="Wipe the model picker disk cache and re-fetch every provider's live /v1/models list.",
+        help="Очистить кэш picker моделей и заново загрузить /v1/models у провайдеров.",
     )
     model_parser.add_argument(
         "--portal-url",
-        help="Portal base URL for Nous login (default: production portal)",
+        help="Base URL портала для входа Nous",
     )
     model_parser.add_argument(
         "--inference-url",
-        help="Inference API base URL for Nous login (default: production inference API)",
+        help="Base URL inference API для входа Nous",
     )
     model_parser.add_argument(
         "--client-id",
         default=None,
-        help="OAuth client id to use for Nous login (default: hermes-cli)",
+        help="OAuth client id для входа Nous",
     )
     model_parser.add_argument(
-        "--scope", default=None, help="OAuth scope to request for Nous login"
+        "--scope", default=None, help="OAuth scope для входа Nous"
     )
     model_parser.add_argument(
         "--no-browser",
         action="store_true",
-        help="Do not attempt to open the browser automatically during Nous login",
+        help="Не открывать браузер автоматически во время входа Nous",
     )
     model_parser.add_argument(
         "--manual-paste",
         action="store_true",
         help=(
-            "For loopback OAuth providers (xai-oauth, ...): skip the local "
-            "callback listener and paste the failed callback URL from your "
-            "browser instead. Use on browser-only remotes (Cloud Shell, "
-            "Codespaces, EC2 Instance Connect, ...). See #26923."
+            "Для loopback OAuth провайдеров: не запускать локальный callback listener, "
+            "а вставить callback URL из браузера вручную."
         ),
     )
     model_parser.add_argument(
         "--timeout",
         type=float,
         default=15.0,
-        help="HTTP request timeout in seconds for Nous login (default: 15)",
+        help="Timeout HTTP-запросов для входа Nous в секундах",
     )
-    model_parser.add_argument(
-        "--ca-bundle", help="Path to CA bundle PEM file for Nous TLS verification"
-    )
+    model_parser.add_argument("--ca-bundle", help="Путь к PEM CA bundle для TLS-проверки Nous")
     model_parser.add_argument(
         "--insecure",
         action="store_true",
-        help="Disable TLS verification for Nous login (testing only)",
+        help="Отключить TLS-проверку для входа Nous (только для тестов)",
     )
     model_parser.set_defaults(func=cmd_model)

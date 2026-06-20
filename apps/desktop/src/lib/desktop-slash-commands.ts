@@ -96,49 +96,49 @@ const unavailable = (reason: DesktopUnavailableReason): DesktopCommandSurface =>
  */
 const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
   // Local client actions
-  { name: '/new', description: 'Start a new desktop chat', aliases: ['/reset'], surface: action('new') },
-  { name: '/branch', description: 'Branch the latest message into a new chat', aliases: ['/fork'], surface: action('branch') },
-  { name: '/yolo', description: 'Toggle YOLO — auto-approve dangerous commands', surface: action('yolo') },
-  { name: '/handoff', description: 'Hand off this session to a messaging platform', surface: action('handoff'), args: true },
-  { name: '/profile', description: 'Switch the active Hermes profile', surface: action('profile') },
-  { name: '/skin', description: 'Switch desktop theme or cycle to the next one', surface: action('skin'), args: true },
-  { name: '/title', description: 'Rename the current session', surface: action('title') },
-  { name: '/help', description: 'Show desktop slash commands', aliases: ['/commands'], surface: action('help') },
+  { name: '/new', description: 'Начать новый desktop-чат', aliases: ['/reset'], surface: action('new') },
+  { name: '/branch', description: 'Ответвить последнее сообщение в новый чат', aliases: ['/fork'], surface: action('branch') },
+  { name: '/yolo', description: 'Переключить YOLO — автоодобрение опасных команд', surface: action('yolo') },
+  { name: '/handoff', description: 'Передать эту сессию в мессенджер', surface: action('handoff'), args: true },
+  { name: '/profile', description: 'Переключить активный профиль Hermes', surface: action('profile') },
+  { name: '/skin', description: 'Переключить desktop-тему или перейти к следующей', surface: action('skin'), args: true },
+  { name: '/title', description: 'Переименовать текущую сессию', surface: action('title') },
+  { name: '/help', description: 'Показать desktop slash-команды', aliases: ['/commands'], surface: action('help') },
   {
     name: '/browser',
-    description: 'Manage browser CDP connection [connect|disconnect|status] (local gateway only)',
+    description: 'Управлять browser CDP-подключением [connect|disconnect|status]',
     surface: action('browser'),
     args: true
   },
 
   // Overlay pickers
-  { name: '/model', description: 'Switch the model for this session', surface: picker('model'), hidden: true },
+  { name: '/model', description: 'Переключить модель для этой сессии', surface: picker('model'), hidden: true },
   {
     name: '/resume',
-    description: 'Resume a saved session',
+    description: 'Продолжить сохранённую сессию',
     aliases: ['/sessions', '/switch'],
     surface: picker('session'),
     args: true
   },
 
   // Backend-executed commands that render useful inline output
-  { name: '/agents', description: 'Show active desktop sessions and running tasks', aliases: ['/tasks'], surface: exec() },
-  { name: '/background', description: 'Run a prompt in the background', aliases: ['/bg', '/btw'], surface: exec() },
-  { name: '/compress', description: 'Compress this conversation context', surface: exec() },
-  { name: '/debug', description: 'Create a debug report', surface: exec() },
-  { name: '/goal', description: 'Manage the standing goal for this session', surface: exec() },
-  { name: '/personality', description: 'Switch personality for this session', surface: exec(), args: true },
-  { name: '/queue', description: 'Queue a prompt for the next turn', aliases: ['/q'], surface: exec() },
-  { name: '/retry', description: 'Retry the last user message', surface: exec() },
-  { name: '/rollback', description: 'List or restore filesystem checkpoints', surface: exec() },
-  { name: '/save', description: 'Save the current transcript to JSON', surface: exec() },
-  { name: '/status', description: 'Show current session status', surface: exec() },
-  { name: '/steer', description: 'Steer the current run after the next tool call', surface: exec() },
-  { name: '/stop', description: 'Stop running background processes', surface: exec() },
-  { name: '/tools', description: 'List or toggle tools available to the agent', surface: exec(), args: true },
-  { name: '/undo', description: 'Remove the last user/assistant exchange', surface: exec() },
-  { name: '/usage', description: 'Show token usage for this session', surface: exec() },
-  { name: '/version', description: 'Show Hermes Agent version', surface: exec() },
+  { name: '/agents', description: 'Показать активные desktop-сессии и задачи', aliases: ['/tasks'], surface: exec() },
+  { name: '/background', description: 'Запустить запрос в фоне', aliases: ['/bg', '/btw'], surface: exec() },
+  { name: '/compress', description: 'Сжать контекст этого диалога', surface: exec() },
+  { name: '/debug', description: 'Создать debug-отчёт', surface: exec() },
+  { name: '/goal', description: 'Управлять постоянной целью этой сессии', surface: exec() },
+  { name: '/personality', description: 'Переключить личность для этой сессии', surface: exec(), args: true },
+  { name: '/queue', description: 'Поставить запрос в очередь на следующий ход', aliases: ['/q'], surface: exec() },
+  { name: '/retry', description: 'Повторить последнее сообщение пользователя', surface: exec() },
+  { name: '/rollback', description: 'Показать или восстановить файловые checkpoints', surface: exec() },
+  { name: '/save', description: 'Сохранить текущий transcript в JSON', surface: exec() },
+  { name: '/status', description: 'Показать статус текущей сессии', surface: exec() },
+  { name: '/steer', description: 'Направить текущий запуск после следующего tool call', surface: exec() },
+  { name: '/stop', description: 'Остановить фоновые процессы', surface: exec() },
+  { name: '/tools', description: 'Показать или переключить инструменты агента', surface: exec(), args: true },
+  { name: '/undo', description: 'Удалить последний обмен пользователь/ассистент', surface: exec() },
+  { name: '/usage', description: 'Показать расход токенов этой сессии', surface: exec() },
+  { name: '/version', description: 'Показать версию Hermes RU Iola', surface: exec() },
 
   // No desktop surface, but carry an alias (underscore spelling variants).
   { name: '/reload-mcp', aliases: ['/reload_mcp'], surface: unavailable('advanced') },
@@ -174,15 +174,15 @@ const ALIAS_TO_CANONICAL = new Map<string, string>(
 
 const UNAVAILABLE_MESSAGE: Record<DesktopUnavailableReason, (command: string) => string> = {
   advanced: command =>
-    `${command} is not shown in the desktop slash palette. Use the relevant desktop control or terminal interface instead.`,
-  messaging: command => `${command} is only used from messaging platforms.`,
-  settings: command => `${command} is managed from the desktop sidebar.`,
-  terminal: command => `${command} is only available in the terminal interface.`
+    `${command} не показывается в desktop slash-палитре. Используйте соответствующий desktop-контрол или терминал.`,
+  messaging: command => `${command} используется только из мессенджеров.`,
+  settings: command => `${command} управляется из desktop sidebar.`,
+  terminal: command => `${command} доступна только в терминальном интерфейсе.`
 }
 
 const PICKER_UNAVAILABLE_MESSAGE: Record<DesktopPickerId, (command: string) => string> = {
-  model: command => `${command} uses the desktop model picker instead of a slash command.`,
-  session: command => `${command} uses the desktop session picker instead of a slash command.`
+  model: command => `${command} использует desktop picker модели вместо slash-команды.`,
+  session: command => `${command} использует desktop picker сессии вместо slash-команды.`
 }
 
 function normalizeCommand(command: string): string {
@@ -317,17 +317,17 @@ export function desktopSkinSlashCompletions(
     {
       text: '/skin list',
       display: '/skin list',
-      meta: 'Show available desktop themes'
+      meta: 'Показать доступные desktop-темы'
     },
     {
       text: '/skin next',
       display: '/skin next',
-      meta: 'Cycle to the next desktop theme'
+      meta: 'Перейти к следующей desktop-теме'
     },
     ...themes.map(theme => ({
       text: `/skin ${theme.name}`,
       display: `/skin ${theme.name}`,
-      meta: `${theme.label}${theme.name === activeThemeName ? ' (current)' : ''} - ${theme.description}`
+      meta: `${theme.label}${theme.name === activeThemeName ? ' (текущая)' : ''} - ${theme.description}`
     }))
   ]
 

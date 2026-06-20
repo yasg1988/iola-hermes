@@ -228,12 +228,12 @@ def _print_fast_version_info() -> None:
     from hermes_cli import __release_date__, __version__
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-    print(f"Hermes Agent v{__version__} ({__release_date__})")
-    print(f"Project: {project_root}")
+    print(f"Hermes RU Iola v{__version__} ({__release_date__})")
+    print(f"Проект: {project_root}")
     print(f"Python: {sys.version.split()[0]}")
 
     openai_version = _read_openai_version_fast()
-    print(f"OpenAI SDK: {openai_version}" if openai_version else "OpenAI SDK: Not installed")
+    print(f"OpenAI SDK: {openai_version}" if openai_version else "OpenAI SDK: не установлен")
 
 
 def _try_termux_ultrafast_version() -> bool:
@@ -2577,14 +2577,14 @@ def cmd_whatsapp(args):
             print("    2. Send a message to the bot's WhatsApp number")
             print("    3. The agent will reply automatically")
             print()
-            print("  Tip: Agent responses are prefixed with '⚕ Hermes Agent'")
+            print("  Подсказка: ответы агента помечаются префиксом '⚕ Hermes RU Iola'")
         else:
             print("  Next steps:")
             print("    1. Start the gateway:  hermes gateway")
             print("    2. Open WhatsApp → Message Yourself")
             print("    3. Type a message — the agent will reply")
             print()
-            print("  Tip: Agent responses are prefixed with '⚕ Hermes Agent'")
+            print("  Подсказка: ответы агента помечаются префиксом '⚕ Hermes RU Iola'")
             print("  so you can tell them apart from your own messages.")
         print()
         print("  Or install as a service: hermes gateway install")
@@ -4270,7 +4270,7 @@ def _print_version_info(*, check_updates: bool = True) -> None:
     from hermes_cli.banner import format_banner_version_label
 
     print(format_banner_version_label())
-    print(f"Project: {PROJECT_ROOT}")
+    print(f"Проект: {PROJECT_ROOT}")
 
     # Show Python version
     print(f"Python: {sys.version.split()[0]}")
@@ -4284,9 +4284,9 @@ def _print_version_info(*, check_updates: bool = True) -> None:
         try:
             print(f"OpenAI SDK: {_pkg_version('openai')}")
         except PackageNotFoundError:
-            print("OpenAI SDK: Not installed")
+            print("OpenAI SDK: не установлен")
     except ImportError:
-        print("OpenAI SDK: Not installed")
+        print("OpenAI SDK: не установлен")
 
     if not check_updates:
         return
@@ -4298,13 +4298,13 @@ def _print_version_info(*, check_updates: bool = True) -> None:
 
         behind = check_for_updates()
         if behind and behind > 0:
-            commits_word = "commit" if behind == 1 else "commits"
+            commits_word = "коммит" if behind == 1 else "коммитов"
             print(
-                f"Update available: {behind} {commits_word} behind — "
-                f"run '{recommended_update_command()}'"
+                f"Доступно обновление: отставание на {behind} {commits_word}; "
+                f"запустите '{recommended_update_command()}'"
             )
         elif behind == 0:
-            print("Up to date")
+            print("Установлена последняя версия")
     except Exception:
         pass
 
@@ -8588,7 +8588,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             logger.debug("Could not read updates.non_interactive_local_changes: %s", exc)
             discard_local_changes = False
 
-    print("⚕ Updating Hermes Agent...")
+    print("⚕ Обновление Hermes RU Iola...")
     print()
 
     # On Windows, abort early if another hermes.exe is holding the venv shim
@@ -11631,7 +11631,7 @@ def main():
     if _try_termux_fast_cli_launch():
         return
 
-    from hermes_cli._parser import build_top_level_parser
+    from hermes_cli._parser import build_top_level_parser, localize_top_level_subcommands
 
     parser, subparsers, chat_parser = build_top_level_parser()
     chat_parser.set_defaults(func=cmd_chat)
@@ -12535,6 +12535,8 @@ def main():
         # Unreachable: os.execvp never returns on success (process is replaced)
         # and raises OSError on failure (which propagates as a traceback).
         sys.exit(1)
+
+    localize_top_level_subcommands(subparsers)
 
     _processed_argv = _coalesce_session_name_args(sys.argv[1:])
 

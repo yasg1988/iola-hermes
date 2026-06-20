@@ -50,12 +50,12 @@ export const ru: Translations = {
   },
 
   app: {
-    brand: "Hermes Agent",
-    brandShort: "HA",
+    brand: "Hermes RU Iola",
+    brandShort: "Iola",
     closeNavigation: "Закрыть навигацию",
     closeModelTools: "Закрыть модель и инструменты",
     footer: {
-      org: "Nous Research",
+      org: "Iola",
     },
     activeSessionsLabel: "Активные сессии:",
     gatewayStatusLabel: "Статус шлюза:",

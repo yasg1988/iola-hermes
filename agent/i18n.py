@@ -44,7 +44,7 @@ SUPPORTED_LANGUAGES: tuple[str, ...] = (
     "en", "zh", "zh-hant", "ja", "de", "es", "fr", "tr", "uk",
     "af", "ko", "it", "ga", "pt", "ru", "hu",
 )
-DEFAULT_LANGUAGE = "en"
+DEFAULT_LANGUAGE = "ru"
 
 # Accept a few natural aliases so users who type "chinese" / "zh-CN" / "jp"
 # get the right catalog instead of silently falling back to English.

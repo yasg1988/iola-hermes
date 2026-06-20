@@ -38,51 +38,44 @@ def build_gateway_parser(
     # =========================================================================
     gateway_parser = subparsers.add_parser(
         "gateway",
-        help="Messaging gateway management",
-        description="Manage the messaging gateway (Telegram, Discord, WhatsApp, Weixin, and more)",
+        help="Управление gateway мессенджеров",
+        description="Управление gateway для Telegram, Discord, WhatsApp, Weixin и других платформ",
     )
     gateway_subparsers = gateway_parser.add_subparsers(dest="gateway_command")
 
     # gateway run (default)
     gateway_run = gateway_subparsers.add_parser(
-        "run", help="Run gateway in foreground (recommended for WSL, Docker, Termux)"
+        "run", help="Запустить gateway в foreground-режиме"
     )
     gateway_run.add_argument(
         "-v",
         "--verbose",
         action="count",
         default=0,
-        help="Increase stderr log verbosity (-v=INFO, -vv=DEBUG)",
+        help="Повысить подробность stderr-логов (-v=INFO, -vv=DEBUG)",
     )
     gateway_run.add_argument(
-        "-q", "--quiet", action="store_true", help="Suppress all stderr log output"
+        "-q", "--quiet", action="store_true", help="Отключить вывод stderr-логов"
     )
     gateway_run.add_argument(
         "--replace",
         action="store_true",
-        help="Replace any existing gateway instance (useful for systemd)",
+        help="Заменить уже запущенный экземпляр gateway",
     )
     gateway_run.add_argument(
         "--force",
         action="store_true",
         help=(
-            "Start a foreground gateway even when a systemd/launchd/s6 service "
-            "already supervises this profile. Without --force, the command "
-            "refuses because a second dispatcher escapes the service and can "
-            "corrupt shared gateway state."
+            "Запустить foreground gateway, даже если профиль уже обслуживается "
+            "systemd/launchd/s6. Используйте только если понимаете риск второго dispatcher."
         ),
     )
     gateway_run.add_argument(
         "--no-supervise",
         action="store_true",
         help=(
-            "Inside the s6-overlay Docker image, normally `gateway run` is "
-            "automatically redirected to the supervised s6 service (so the "
-            "gateway gets auto-restart on crash, plus a supervised dashboard "
-            "if HERMES_DASHBOARD is set). Pass --no-supervise to opt out and "
-            "get the historical pre-s6 foreground behavior: the gateway is "
-            "the container's main process and the container exits with the "
-            "gateway's exit code. No effect outside an s6 container."
+            "Внутри Docker-образа с s6-overlay отключить автоматическую передачу "
+            "gateway run под supervised s6 service."
         ),
     )
     add_accept_hooks_flag(gateway_run)
@@ -90,79 +83,79 @@ def build_gateway_parser(
 
     # gateway start
     gateway_start = gateway_subparsers.add_parser(
-        "start", help="Start the installed systemd/launchd background service"
+        "start", help="Запустить установленный background service systemd/launchd"
     )
     gateway_start.add_argument(
         "--system",
         action="store_true",
-        help="Target the Linux system-level gateway service",
+        help="Использовать Linux system-level gateway service",
     )
     gateway_start.add_argument(
         "--all",
         action="store_true",
-        help="Kill ALL stale gateway processes across all profiles before starting",
+        help="Перед запуском остановить все устаревшие gateway-процессы всех профилей",
     )
     _add_compat_platform_flag(gateway_start)
 
     # gateway stop
-    gateway_stop = gateway_subparsers.add_parser("stop", help="Stop gateway service")
+    gateway_stop = gateway_subparsers.add_parser("stop", help="Остановить gateway service")
     gateway_stop.add_argument(
         "--system",
         action="store_true",
-        help="Target the Linux system-level gateway service",
+        help="Использовать Linux system-level gateway service",
     )
     gateway_stop.add_argument(
         "--all",
         action="store_true",
-        help="Stop ALL gateway processes across all profiles",
+        help="Остановить все gateway-процессы всех профилей",
     )
 
     # gateway restart
     gateway_restart = gateway_subparsers.add_parser(
-        "restart", help="Restart gateway service"
+        "restart", help="Перезапустить gateway service"
     )
     gateway_restart.add_argument(
         "--system",
         action="store_true",
-        help="Target the Linux system-level gateway service",
+        help="Использовать Linux system-level gateway service",
     )
     gateway_restart.add_argument(
         "--all",
         action="store_true",
-        help="Kill ALL gateway processes across all profiles before restarting",
+        help="Перед перезапуском остановить все gateway-процессы всех профилей",
     )
     _add_compat_platform_flag(gateway_restart)
 
     # gateway status
-    gateway_status = gateway_subparsers.add_parser("status", help="Show gateway status")
-    gateway_status.add_argument("--deep", action="store_true", help="Deep status check")
+    gateway_status = gateway_subparsers.add_parser("status", help="Показать статус gateway")
+    gateway_status.add_argument("--deep", action="store_true", help="Глубокая проверка статуса")
     gateway_status.add_argument(
         "-l",
         "--full",
         action="store_true",
-        help="Show full, untruncated service/log output where supported",
+        help="Показать полный вывод service/log без обрезки, где поддерживается",
     )
     gateway_status.add_argument(
         "--system",
         action="store_true",
-        help="Target the Linux system-level gateway service",
+        help="Использовать Linux system-level gateway service",
     )
     _add_compat_platform_flag(gateway_status)
 
     # gateway install
     gateway_install = gateway_subparsers.add_parser(
-        "install", help="Install gateway as a systemd/launchd background service"
+        "install", help="Установить gateway как background service systemd/launchd"
     )
-    gateway_install.add_argument("--force", action="store_true", help="Force reinstall")
+    gateway_install.add_argument("--force", action="store_true", help="Принудительная переустановка")
     gateway_install.add_argument(
         "--system",
         action="store_true",
-        help="Install as a Linux system-level service (starts at boot)",
+        help="Установить как Linux system-level service с запуском при boot",
     )
     gateway_install.add_argument(
         "--run-as-user",
         dest="run_as_user",
-        help="User account the Linux system service should run as",
+        help="Пользователь, от имени которого должен работать Linux system service",
     )
     gateway_install.add_argument(
         "--start-now",
@@ -199,43 +192,41 @@ def build_gateway_parser(
 
     # gateway uninstall
     gateway_uninstall = gateway_subparsers.add_parser(
-        "uninstall", help="Uninstall gateway service"
+        "uninstall", help="Удалить gateway service"
     )
     gateway_uninstall.add_argument(
         "--system",
         action="store_true",
-        help="Target the Linux system-level gateway service",
+        help="Использовать Linux system-level gateway service",
     )
 
     # gateway list
-    gateway_subparsers.add_parser("list", help="List all profiles and their gateway status")
+    gateway_subparsers.add_parser("list", help="Показать все профили и статус их gateway")
 
     # gateway setup
-    gateway_subparsers.add_parser("setup", help="Configure messaging platforms")
+    gateway_subparsers.add_parser("setup", help="Настроить платформы мессенджеров")
 
     # gateway migrate-legacy
     gateway_migrate_legacy = gateway_subparsers.add_parser(
         "migrate-legacy",
-        help="Remove legacy hermes.service units from pre-rename installs",
+        help="Удалить legacy hermes.service units от старых установок",
         description=(
-            "Stop, disable, and remove legacy Hermes gateway unit files "
-            "(e.g. hermes.service) left over from older installs. Profile "
-            "units (hermes-gateway-<profile>.service) and unrelated "
-            "third-party services are never touched."
+            "Остановить, отключить и удалить legacy unit-файлы Hermes gateway "
+            "от старых установок. Profile units и сторонние сервисы не трогаются."
         ),
     )
     gateway_migrate_legacy.add_argument(
         "--dry-run",
         dest="dry_run",
         action="store_true",
-        help="List what would be removed without doing it",
+        help="Показать, что будет удалено, без выполнения",
     )
     gateway_migrate_legacy.add_argument(
         "-y",
         "--yes",
         dest="yes",
         action="store_true",
-        help="Skip the confirmation prompt",
+        help="Пропустить подтверждение",
     )
 
     # gateway enroll — enroll a self-hosted gateway with a relay connector
@@ -245,22 +236,17 @@ def build_gateway_parser(
     # docs/connector-gateway-auth-design.md). EXPERIMENTAL.
     gateway_enroll = gateway_subparsers.add_parser(
         "enroll",
-        help="Enroll this gateway with a relay connector (writes relay auth creds to .env)",
+        help="Зарегистрировать gateway в relay connector и записать auth-данные в .env",
         description=(
-            "Redeem a single-use enrollment token with a relay connector. "
-            "Authenticates as your Nous Portal account (the connector derives the "
-            "authoritative tenant from it), mints this gateway's per-gateway secret "
-            "and per-tenant delivery key, and writes GATEWAY_RELAY_ID / "
-            "GATEWAY_RELAY_SECRET / GATEWAY_RELAY_DELIVERY_KEY into ~/.hermes/.env. "
-            "Requires being logged in (hermes setup). Not available in managed installs."
+            "Обменять одноразовый enrollment token у relay connector, получить "
+            "секрет gateway и delivery key, затем записать GATEWAY_RELAY_* в ~/.hermes/.env."
         ),
     )
     gateway_enroll.add_argument(
         "--token",
         default=None,
         help=(
-            "The single-use enrollment token from the connector (delivered with "
-            "your gateway config). Also settable via GATEWAY_RELAY_ENROLL_TOKEN."
+            "Одноразовый enrollment token от connector. Можно задать через GATEWAY_RELAY_ENROLL_TOKEN."
         ),
     )
     gateway_enroll.add_argument(
@@ -268,9 +254,7 @@ def build_gateway_parser(
         dest="connector_url",
         default=None,
         help=(
-            "The connector base/relay URL, e.g. wss://connector.example.com/relay "
-            "or https://connector.example.com. Also settable via GATEWAY_RELAY_URL "
-            "/ gateway.relay_url in config.yaml."
+            "Base/relay URL connector, например wss://connector.example.com/relay."
         ),
     )
     gateway_enroll.add_argument(
@@ -278,8 +262,7 @@ def build_gateway_parser(
         dest="gateway_id",
         default=None,
         help=(
-            "A stable id for this gateway instance (kill-switch granularity). "
-            "Defaults to gw-<hostname>."
+            "Стабильный ID этого экземпляра gateway. По умолчанию gw-<hostname>."
         ),
     )
     gateway_enroll.set_defaults(func=cmd_gateway_enroll)
@@ -292,41 +275,39 @@ def build_gateway_parser(
     # =========================================================================
     proxy_parser = subparsers.add_parser(
         "proxy",
-        help="Local OpenAI-compatible proxy to OAuth providers",
+        help="Локальный OpenAI-compatible proxy к OAuth-провайдерам",
         description=(
-            "Run a local HTTP server that forwards OpenAI-compatible requests "
-            "to an OAuth-authenticated provider (e.g. Nous Portal). External "
-            "apps can point at the proxy with any bearer token; the proxy "
-            "attaches your real credentials."
+            "Запустить локальный HTTP-сервер, который проксирует OpenAI-compatible "
+            "запросы к OAuth-authenticated провайдеру."
         ),
     )
     proxy_subparsers = proxy_parser.add_subparsers(dest="proxy_command")
 
     proxy_start = proxy_subparsers.add_parser(
-        "start", help="Run the proxy in the foreground"
+        "start", help="Запустить proxy в foreground-режиме"
     )
     proxy_start.add_argument(
         "--provider",
         default="nous",
-        help="Upstream provider: nous or xai (default: nous). See `hermes proxy providers`.",
+        help="Upstream provider: nous или xai.",
     )
     proxy_start.add_argument(
         "--host",
         default=None,
-        help="Bind address (default: 127.0.0.1). Use 0.0.0.0 to expose on LAN.",
+        help="Адрес bind. Используйте 0.0.0.0 для доступа из LAN.",
     )
     proxy_start.add_argument(
         "--port",
         type=int,
         default=None,
-        help="Bind port (default: 8645)",
+        help="Порт bind",
     )
 
     proxy_subparsers.add_parser(
-        "status", help="Show which proxy upstreams are ready"
+        "status", help="Показать готовность proxy upstreams"
     )
     proxy_subparsers.add_parser(
-        "providers", help="List available proxy upstream providers"
+        "providers", help="Показать доступные proxy upstream providers"
     )
     proxy_parser.set_defaults(func=cmd_proxy)
     gateway_parser.set_defaults(func=cmd_gateway)

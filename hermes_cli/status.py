@@ -96,7 +96,7 @@ def show_status(args):
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.CYAN))
-    print(color("│                 ⚕ Hermes Agent Status                  │", Colors.CYAN))
+    print(color("│                ⚕ Статус Hermes RU Iola                │", Colors.CYAN))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.CYAN))
 
     # =========================================================================
@@ -104,7 +104,7 @@ def show_status(args):
     # =========================================================================
     print()
     print(color("◆ Environment", Colors.CYAN, Colors.BOLD))
-    print(f"  Project:      {PROJECT_ROOT}")
+    print(f"  Проект:       {PROJECT_ROOT}")
     print(f"  Python:       {sys.version.split()[0]}")
 
     env_path = get_env_path()

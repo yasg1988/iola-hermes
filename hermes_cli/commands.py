@@ -17,7 +17,7 @@ import shutil
 import subprocess
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from utils import is_truthy_value
@@ -237,6 +237,102 @@ COMMAND_REGISTRY: list[CommandDef] = [
                cli_only=True, aliases=("exit",), args_hint="[--delete]"),
 ]
 
+_RU_CATEGORIES: dict[str, str] = {
+    "Session": "Сессия",
+    "Configuration": "Настройки",
+    "Tools & Skills": "Инструменты и навыки",
+    "Info": "Справка",
+    "Exit": "Выход",
+}
+
+_RU_DESCRIPTIONS: dict[str, str] = {
+    "start": "Принять стартовые события платформы без ответа",
+    "new": "Начать новую сессию с чистой историей",
+    "topic": "Включить или проверить Telegram DM topic-сессии",
+    "clear": "Очистить экран и начать новую сессию",
+    "redraw": "Полностью перерисовать интерфейс терминала",
+    "history": "Показать историю диалога",
+    "save": "Сохранить текущий диалог",
+    "retry": "Повторить последнее сообщение",
+    "undo": "Откатить N пользовательских ходов и отправить заново",
+    "title": "Задать название текущей сессии",
+    "handoff": "Передать эту сессию в мессенджер",
+    "branch": "Создать ветку текущей сессии",
+    "compress": "Сжать контекст диалога",
+    "rollback": "Показать или восстановить файловые checkpoints",
+    "snapshot": "Создать или восстановить snapshot состояния Hermes",
+    "stop": "Остановить все выполняющиеся фоновые процессы",
+    "approve": "Одобрить ожидающую опасную команду",
+    "deny": "Отклонить ожидающую опасную команду",
+    "background": "Запустить запрос в фоне",
+    "agents": "Показать активных агентов и задачи",
+    "queue": "Поставить запрос в очередь на следующий ход",
+    "steer": "Добавить сообщение после следующего вызова инструмента",
+    "goal": "Задать долгосрочную цель для работы между ходами",
+    "subgoal": "Добавить или изменить критерии активной цели",
+    "status": "Показать сессию, модель, токены и контекст",
+    "whoami": "Показать ваши права slash-команд",
+    "profile": "Показать активный профиль и домашний каталог",
+    "sethome": "Назначить этот чат домашним каналом",
+    "resume": "Продолжить ранее названную сессию",
+    "sessions": "Просмотреть и продолжить прошлые сессии",
+    "config": "Показать текущую конфигурацию",
+    "model": "Переключить модель",
+    "codex-runtime": "Переключить runtime app-server для OpenAI/Codex моделей",
+    "gquota": "Показать квоту Google Gemini Code Assist",
+    "personality": "Задать предустановленную личность",
+    "statusbar": "Переключить статус-бар контекста и модели",
+    "verbose": "Переключить детализацию прогресса инструментов",
+    "footer": "Переключить footer runtime-метаданных в gateway-ответах",
+    "yolo": "Переключить YOLO-режим без подтверждений опасных команд",
+    "reasoning": "Управлять reasoning effort и его отображением",
+    "fast": "Переключить быстрый режим провайдера",
+    "skin": "Показать или изменить тему отображения",
+    "indicator": "Выбрать стиль индикатора занятости TUI",
+    "voice": "Переключить голосовой режим",
+    "busy": "Настроить поведение Enter во время работы Hermes",
+    "tools": "Управлять инструментами",
+    "toolsets": "Показать доступные toolsets",
+    "skills": "Искать, устанавливать и управлять навыками",
+    "memory": "Проверить ожидающие записи памяти и approval gate",
+    "bundles": "Показать skill bundles",
+    "cron": "Управлять задачами по расписанию",
+    "suggestions": "Проверить предложенные автоматизации",
+    "blueprint": "Настроить автоматизацию по шаблону",
+    "curator": "Фоновое обслуживание навыков",
+    "kanban": "Доска совместной работы нескольких профилей",
+    "reload": "Перезагрузить .env-переменные в текущей сессии",
+    "reload-mcp": "Перезагрузить MCP-серверы из конфигурации",
+    "reload-skills": "Повторно просканировать каталог навыков",
+    "browser": "Подключить browser tools к вашему Chromium-браузеру",
+    "plugins": "Показать установленные плагины и их статус",
+    "commands": "Показать все команды и навыки",
+    "help": "Показать доступные команды",
+    "restart": "Аккуратно перезапустить gateway после завершения активных задач",
+    "usage": "Показать расход токенов и лимиты текущей сессии",
+    "credits": "Показать баланс Nous и пополнение",
+    "billing": "Управлять billing и лимитами Nous",
+    "insights": "Показать аналитику использования",
+    "platforms": "Показать статус gateway и мессенджеров",
+    "platform": "Поставить на паузу, возобновить или показать платформу gateway",
+    "copy": "Скопировать последний ответ ассистента",
+    "paste": "Прикрепить изображение из буфера обмена",
+    "image": "Прикрепить локальный файл изображения к следующему запросу",
+    "update": "Обновить Hermes RU Iola до последней версии",
+    "version": "Показать версию Hermes RU Iola",
+    "debug": "Загрузить debug-отчёт и получить ссылки для передачи",
+    "quit": "Выйти из CLI",
+}
+
+COMMAND_REGISTRY = [
+    replace(
+        cmd,
+        description=_RU_DESCRIPTIONS.get(cmd.name, cmd.description),
+        category=_RU_CATEGORIES.get(cmd.category, cmd.category),
+    )
+    for cmd in COMMAND_REGISTRY
+]
+
 
 # ---------------------------------------------------------------------------
 # Derived lookups -- rebuilt once at import time, refreshed by rebuild_lookups()
@@ -266,7 +362,7 @@ def resolve_command(name: str) -> CommandDef | None:
 def _build_description(cmd: CommandDef) -> str:
     """Build a CLI-facing description string including usage hint."""
     if cmd.args_hint:
-        return f"{cmd.description} (usage: /{cmd.name} {cmd.args_hint})"
+        return f"{cmd.description} (использование: /{cmd.name} {cmd.args_hint})"
     return cmd.description
 
 
@@ -276,7 +372,7 @@ for _cmd in COMMAND_REGISTRY:
     if not _cmd.gateway_only:
         COMMANDS[f"/{_cmd.name}"] = _build_description(_cmd)
         for _alias in _cmd.aliases:
-            COMMANDS[f"/{_alias}"] = f"{_cmd.description} (alias for /{_cmd.name})"
+            COMMANDS[f"/{_alias}"] = f"{_cmd.description} (алиас для /{_cmd.name})"
 
 # Backwards-compatible categorized dict
 COMMANDS_BY_CATEGORY: dict[str, dict[str, str]] = {}

@@ -16,43 +16,38 @@ def build_setup_parser(subparsers, *, cmd_setup: Callable) -> None:
     # =========================================================================
     setup_parser = subparsers.add_parser(
         "setup",
-        help="Interactive setup wizard",
-        description="Configure Hermes Agent with an interactive wizard. "
-        "Run a specific section: hermes setup model|tts|terminal|gateway|tools|agent",
+        help="Интерактивный мастер настройки",
+        description="Настроить Hermes RU Iola через интерактивный мастер. "
+        "Можно запустить секцию: hermes setup model|tts|terminal|gateway|tools|agent",
     )
     setup_parser.add_argument(
         "section",
         nargs="?",
         choices=["model", "tts", "terminal", "gateway", "tools", "agent"],
         default=None,
-        help="Run a specific setup section instead of the full wizard",
+        help="Запустить отдельную секцию настройки вместо полного мастера",
     )
     setup_parser.add_argument(
         "--non-interactive",
         action="store_true",
-        help="Non-interactive mode (use defaults/env vars)",
+        help="Неинтерактивный режим: использовать значения по умолчанию и env vars",
     )
     setup_parser.add_argument(
-        "--reset", action="store_true", help="Reset configuration to defaults"
+        "--reset", action="store_true", help="Сбросить конфигурацию по умолчанию"
     )
     setup_parser.add_argument(
         "--reconfigure",
         action="store_true",
-        help="(Default on existing installs.) Re-run the full wizard, "
-        "showing current values as defaults. Kept for backwards "
-        "compatibility — a bare 'hermes setup' now does this.",
+        help="Повторно запустить полный мастер с текущими значениями как defaults.",
     )
     setup_parser.add_argument(
         "--quick",
         action="store_true",
-        help="On existing installs: only prompt for items that are missing "
-        "or unset, instead of running the full reconfigure wizard.",
+        help="На существующей установке спрашивать только отсутствующие значения.",
     )
     setup_parser.add_argument(
         "--portal",
         action="store_true",
-        help="One-shot Nous Portal setup: log in via OAuth, pick a Nous "
-        "model, set Nous as the inference provider, and opt into the Tool "
-        "Gateway. Skips the rest of the wizard.",
+        help="Быстрая настройка Nous Portal через OAuth, выбор модели и Tool Gateway.",
     )
     setup_parser.set_defaults(func=cmd_setup)

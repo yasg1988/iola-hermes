@@ -204,7 +204,7 @@ def _get_chat_argv_lock(app: "FastAPI") -> asyncio.Lock:
         return app.state.chat_argv_lock
 
 
-app = FastAPI(title="Hermes Agent", version=__version__, lifespan=_lifespan)
+app = FastAPI(title="Hermes RU Iola", version=__version__, lifespan=_lifespan)
 
 # ---------------------------------------------------------------------------
 # Session token for protecting sensitive endpoints (reveal).
@@ -5110,7 +5110,7 @@ async def _telegram_onboarding_request(
 
 @app.post("/api/messaging/telegram/onboarding/start")
 async def start_telegram_onboarding(body: TelegramOnboardingStart):
-    bot_name = (body.bot_name or "Hermes Agent").strip() or "Hermes Agent"
+    bot_name = (body.bot_name or "Hermes RU Iola").strip() or "Hermes RU Iola"
     payload = await _telegram_onboarding_request(
         "POST",
         "/v1/telegram/pairings",

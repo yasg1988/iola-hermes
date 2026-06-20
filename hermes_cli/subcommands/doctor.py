@@ -16,20 +16,19 @@ def build_doctor_parser(subparsers, *, cmd_doctor: Callable) -> None:
     # =========================================================================
     doctor_parser = subparsers.add_parser(
         "doctor",
-        help="Check configuration and dependencies",
-        description="Diagnose issues with Hermes Agent setup",
+        help="Проверить конфигурацию и зависимости",
+        description="Диагностика проблем установки Hermes RU Iola",
     )
     doctor_parser.add_argument(
-        "--fix", action="store_true", help="Attempt to fix issues automatically"
+        "--fix", action="store_true", help="Попытаться исправить проблемы автоматически"
     )
     doctor_parser.add_argument(
         "--ack",
         metavar="ADVISORY_ID",
         default=None,
         help=(
-            "Acknowledge a security advisory by ID and exit. After ack, the "
-            "advisory will no longer trigger startup banners. Run `hermes "
-            "doctor` first to see active advisories and their IDs."
+            "Подтвердить security advisory по ID и выйти. После ack предупреждение "
+            "не будет показывать startup banner."
         ),
     )
     doctor_parser.set_defaults(func=cmd_doctor)

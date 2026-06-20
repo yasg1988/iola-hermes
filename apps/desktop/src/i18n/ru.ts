@@ -105,7 +105,7 @@ export const ru = defineLocale({
       colorMode: 'Цветовой режим',
       colorModeDesc: 'Светлая, тёмная или системная тема.',
       product: 'Hermes RU Iola',
-      productDesc: 'Русская сборка Hermes Agent от Iola.'
+      productDesc: 'Русская сборка Hermes RU Iola.'
     },
     about: {
       heading: 'Hermes RU Iola',
