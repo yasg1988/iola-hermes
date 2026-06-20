@@ -2,7 +2,7 @@ class HermesAgent < Formula
   include Language::Python::Virtualenv
 
   desc "Self-improving AI agent that creates skills from experience"
-  homepage "https://hermes-agent.nousresearch.com"
+  homepage "https://github.com/yasg1988/iola-hermes#readme"
   # Stable source should point at the semver-named sdist asset attached by
   # scripts/release.py, not the CalVer tag tarball.
   url "https://github.com/yasg1988/iola-hermes/releases/download/v2026.3.30/hermes_agent-0.6.0.tar.gz"
@@ -39,7 +39,7 @@ class HermesAgent < Formula
   end
 
   test do
-    assert_match "Hermes Agent v#{version}", shell_output("#{bin}/hermes version")
+    assert_match "Hermes RU Iola v#{version}", shell_output("#{bin}/hermes version")
 
     managed = shell_output("#{bin}/hermes update 2>&1")
     assert_match "managed by Homebrew", managed

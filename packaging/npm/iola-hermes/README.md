@@ -3,7 +3,7 @@
 ![Hermes RU Iola](https://raw.githubusercontent.com/yasg1988/iola-hermes/main/assets/iola-hermes-banner.png)
 
 `iola-hermes` — npm wrapper для **Hermes RU Iola**, русскоязычного форка
-NousResearch Hermes Agent.
+оригинального проекта NousResearch Hermes Agent.
 
 ## Установка
 

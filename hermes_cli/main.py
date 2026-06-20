@@ -8082,7 +8082,7 @@ def _ensure_fhs_path_guard() -> None:
 
     path_line = 'export PATH="/usr/local/bin:$PATH"'
     path_comment = (
-        "# Hermes Agent — ensure /usr/local/bin is on PATH " "(RHEL non-login shells)"
+        "# Hermes RU Iola — ensure /usr/local/bin is on PATH " "(RHEL non-login shells)"
     )
     wrote_any = False
     for candidate in (".bashrc", ".bash_profile"):

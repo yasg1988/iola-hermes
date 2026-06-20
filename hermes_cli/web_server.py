@@ -1,5 +1,5 @@
 """
-Hermes Agent — Web UI server.
+Hermes RU Iola — Web UI server.
 
 Provides a FastAPI backend serving the Vite/React frontend and REST API
 endpoints for managing configuration, environment variables, and sessions.
@@ -4355,7 +4355,7 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "email": {
         "name": "Email",
         "description": "Talk to Hermes through an IMAP/SMTP mailbox.",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/",
+        "docs_url": "https://github.com/yasg1988/iola-hermes#readme",
         "env_vars": (
             "EMAIL_ADDRESS",
             "EMAIL_PASSWORD",
@@ -4422,7 +4422,7 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "weixin": {
         "name": "Weixin / WeChat (Personal)",
         "description": "Connect a personal WeChat account through Tencent's iLink Bot API.",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/weixin/",
+        "docs_url": "https://github.com/yasg1988/iola-hermes#readme",
         "env_vars": ("WEIXIN_ACCOUNT_ID", "WEIXIN_TOKEN", "WEIXIN_BASE_URL"),
         "required_env": ("WEIXIN_ACCOUNT_ID", "WEIXIN_TOKEN"),
     },
@@ -4453,7 +4453,7 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "api_server": {
         "name": "API server",
         "description": "Expose Hermes as an OpenAI-compatible HTTP API for tools like Open WebUI.",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/",
+        "docs_url": "https://github.com/yasg1988/iola-hermes#readme",
         "env_vars": (
             "API_SERVER_ENABLED",
             "API_SERVER_KEY",
@@ -4466,7 +4466,7 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "webhook": {
         "name": "Webhooks",
         "description": "Receive events from GitHub, GitLab, and other webhook sources.",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/user-guide/messaging/webhooks/",
+        "docs_url": "https://github.com/yasg1988/iola-hermes#readme",
         "env_vars": ("WEBHOOK_ENABLED", "WEBHOOK_PORT", "WEBHOOK_SECRET"),
         "required_env": (),
     },
@@ -5669,7 +5669,7 @@ _OAUTH_PROVIDER_CATALOG: tuple[Dict[str, Any], ...] = (
         # lands back on the loopback listener — no code to copy/paste.
         "flow": "loopback",
         "cli_command": "hermes auth add xai-oauth",
-        "docs_url": "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+        "docs_url": "https://github.com/yasg1988/iola-hermes#readme",
         "status_fn": None,  # dispatched via auth.get_xai_oauth_auth_status
     },
     {

@@ -65,7 +65,7 @@ All fields are optional. Missing values inherit from the ``default`` skin.
 
     # Branding: text strings used throughout the CLI
     branding:
-      agent_name: "Hermes Agent"          # Banner title, status display
+      agent_name: "Hermes RU Iola"        # Banner title, status display
       welcome: "Welcome message"          # Shown at CLI startup
       goodbye: "Goodbye! ⚕"              # Shown on exit
       response_label: " ⚕ Hermes "       # Response box header label
@@ -90,7 +90,7 @@ USAGE
 
     skin = get_active_skin()
     print(skin.colors["banner_title"])    # "#FFD700"
-    print(skin.get_branding("agent_name"))  # "Hermes Agent"
+    print(skin.get_branding("agent_name"))  # "Hermes RU Iola"
 
     set_active_skin("ares")               # Switch to built-in ares skin
     set_active_skin("mytheme")            # Switch to user skin from ~/.hermes/skins/

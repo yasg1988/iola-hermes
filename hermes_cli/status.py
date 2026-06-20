@@ -1,7 +1,7 @@
 """
 Status command for hermes CLI.
 
-Shows the status of all Hermes Agent components.
+Shows the status of all Hermes RU Iola components.
 """
 
 import os
@@ -90,7 +90,7 @@ from hermes_constants import is_termux as _is_termux
 
 
 def show_status(args):
-    """Show status of all Hermes Agent components."""
+    """Show status of all Hermes RU Iola components."""
     show_all = getattr(args, 'all', False)
     deep = getattr(args, 'deep', False)
 

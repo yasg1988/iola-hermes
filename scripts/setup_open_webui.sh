@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bootstrap Open WebUI against Hermes Agent's OpenAI-compatible API server.
+# Bootstrap Open WebUI against Hermes RU Iola's OpenAI-compatible API server.
 #
 # Idempotent by design:
 # - ensures ~/.hermes/.env has API server settings
@@ -22,11 +22,11 @@ set -euo pipefail
 #   OPEN_WEBUI_DATA_DIR=~/.local/share/open-webui/data
 #   HERMES_API_PORT=8642
 #   HERMES_API_HOST=127.0.0.1
-#   HERMES_API_MODEL_NAME='Hermes Agent'
+#   HERMES_API_MODEL_NAME='Hermes RU Iola'
 
 OPEN_WEBUI_PORT="${OPEN_WEBUI_PORT:-8080}"
 OPEN_WEBUI_HOST="${OPEN_WEBUI_HOST:-127.0.0.1}"
-OPEN_WEBUI_NAME="${OPEN_WEBUI_NAME:-Hermes Agent WebUI}"
+OPEN_WEBUI_NAME="${OPEN_WEBUI_NAME:-Hermes RU Iola WebUI}"
 OPEN_WEBUI_ENABLE_SIGNUP="${OPEN_WEBUI_ENABLE_SIGNUP:-true}"
 OPEN_WEBUI_ENABLE_SERVICE="${OPEN_WEBUI_ENABLE_SERVICE:-auto}"
 OPEN_WEBUI_VENV="${OPEN_WEBUI_VENV:-$HOME/.local/open-webui-venv}"
@@ -35,7 +35,7 @@ HERMES_ENV_FILE="${HERMES_ENV_FILE:-$HOME/.hermes/.env}"
 HERMES_API_PORT="${HERMES_API_PORT:-8642}"
 HERMES_API_HOST="${HERMES_API_HOST:-127.0.0.1}"
 HERMES_API_CONNECT_HOST="${HERMES_API_CONNECT_HOST:-127.0.0.1}"
-HERMES_API_MODEL_NAME="${HERMES_API_MODEL_NAME:-Hermes Agent}"
+HERMES_API_MODEL_NAME="${HERMES_API_MODEL_NAME:-Hermes RU Iola}"
 HERMES_API_BASE_URL="http://${HERMES_API_CONNECT_HOST}:${HERMES_API_PORT}/v1"
 LAUNCHER_PATH="$HOME/.local/bin/start-open-webui-hermes.sh"
 LOG_DIR="$HOME/.hermes/logs"
@@ -262,7 +262,7 @@ install_systemd_user_service() {
   mkdir -p "$unit_dir"
   cat > "$unit" <<EOF
 [Unit]
-Description=Open WebUI connected to Hermes Agent
+Description=Open WebUI connected to Hermes RU Iola
 After=default.target
 
 [Service]

@@ -46,7 +46,7 @@ if env_path.exists():
 # =============================================================================
 
 SERVICE_NAME = "hermes-gateway"
-SERVICE_DESCRIPTION = "Hermes Agent Gateway - Messaging Platform Integration"
+SERVICE_DESCRIPTION = "Hermes RU Iola Gateway - Messaging Platform Integration"
 
 def get_systemd_unit_path() -> Path:
     """Get the path for the systemd user service file."""

@@ -1,11 +1,11 @@
 # ============================================================================
-# Hermes Agent Installer for Windows
+# Hermes RU Iola Installer for Windows
 # ============================================================================
 # Installation script for Windows (PowerShell).
 # Uses uv for fast Python provisioning and package management.
 #
 # Usage:
-#   iex (irm https://hermes-agent.nousresearch.com/install.ps1)
+#   iex (irm https://raw.githubusercontent.com/yasg1988/iola-hermes/main/scripts/install.ps1)
 #
 # Or download and run with options:
 #   .\install.ps1 -NoVenv -SkipSetup
@@ -92,8 +92,8 @@ try {
 # Configuration
 # ============================================================================
 
-$RepoUrlSsh = "git@github.com:NousResearch/hermes-agent.git"
-$RepoUrlHttps = "https://github.com/NousResearch/hermes-agent.git"
+$RepoUrlSsh = "git@github.com:yasg1988/iola-hermes.git"
+$RepoUrlHttps = "https://github.com/yasg1988/iola-hermes.git"
 $PythonVersion = "3.11"
 $NodeVersion = "22"
 
@@ -158,9 +158,9 @@ function Get-WindowsArch {
 function Write-Banner {
     Write-Host ""
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
-    Write-Host "|             * Hermes Agent Installer                    |" -ForegroundColor Magenta
+    Write-Host "|             * Hermes RU Iola Installer                  |" -ForegroundColor Magenta
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
-    Write-Host "|  An open source AI agent by Nous Research.              |" -ForegroundColor Magenta
+    Write-Host "|  Russian-localized open source AI agent.                |" -ForegroundColor Magenta
     Write-Host "+---------------------------------------------------------+" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -1375,13 +1375,13 @@ function Install-Repository {
                 # for.  GitHub supports archive URLs for commits, tags, and
                 # branches; we honour Commit > Tag > Branch.
                 if ($Commit) {
-                    $zipUrl = "https://github.com/NousResearch/hermes-agent/archive/$Commit.zip"
+                    $zipUrl = "https://github.com/yasg1988/iola-hermes/archive/$Commit.zip"
                     $zipLabel = $Commit
                 } elseif ($Tag) {
-                    $zipUrl = "https://github.com/NousResearch/hermes-agent/archive/refs/tags/$Tag.zip"
+                    $zipUrl = "https://github.com/yasg1988/iola-hermes/archive/refs/tags/$Tag.zip"
                     $zipLabel = $Tag
                 } else {
-                    $zipUrl = "https://github.com/NousResearch/hermes-agent/archive/refs/heads/$Branch.zip"
+                    $zipUrl = "https://github.com/yasg1988/iola-hermes/archive/refs/heads/$Branch.zip"
                     $zipLabel = $Branch
                 }
                 $zipPath = "$env:TEMP\hermes-agent-$zipLabel.zip"
@@ -1903,7 +1903,7 @@ function Copy-ConfigTemplates {
     $soulPath = "$HermesHome\SOUL.md"
     if (-not (Test-Path $soulPath)) {
         $soulContent = @"
-# Hermes Agent Persona
+# Hermes RU Iola Persona
 
 <!--
 This file defines the agent's personality and tone.
@@ -2566,7 +2566,7 @@ function New-DesktopShortcuts {
                 $sc.TargetPath = $TargetExe
                 $sc.WorkingDirectory = $workDir
                 $sc.IconLocation = $iconLocation
-                $sc.Description = 'Hermes Agent'
+                $sc.Description = 'Hermes RU Iola'
                 $sc.Save()
                 Write-Success "Shortcut created: $lnkPath"
             } catch {
@@ -3242,7 +3242,7 @@ try {
     Write-Err "Installation failed: $_"
     Write-Host ""
     Write-Info "If the error is unclear, try downloading and running the script directly:"
-    Write-Host "  Invoke-WebRequest -Uri 'https://hermes-agent.nousresearch.com/install.ps1' -OutFile install.ps1" -ForegroundColor Yellow
+    Write-Host "  Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/yasg1988/iola-hermes/main/scripts/install.ps1' -OutFile install.ps1" -ForegroundColor Yellow
     Write-Host "  .\install.ps1" -ForegroundColor Yellow
     Write-Host ""
 }
