@@ -20,6 +20,7 @@ uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
 dirs = "6"
 image = { version = "0.25", default-features = false, features = ["png"] }
+notify = "8.2.0"
 open = "5"
 portable-pty = "0.8"
 percent-encoding = "2"

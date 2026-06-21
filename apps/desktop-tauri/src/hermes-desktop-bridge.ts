@@ -43,6 +43,17 @@ interface HermesWindowState {
   windowButtonPosition: null | { x: number; y: number }
 }
 
+interface HermesPreviewFileChanged {
+  id: string
+  path: string
+  url: string
+}
+
+interface HermesPreviewWatch {
+  id: string
+  path: string
+}
+
 interface DeepLinkPayload {
   kind: string
   name: string
@@ -188,7 +199,8 @@ export function installHermesDesktopBridge() {
     onNotificationAction: () => noopUnsubscribe,
     onOpenUpdatesRequested: () => noopUnsubscribe,
     onPowerResume: () => noopUnsubscribe,
-    onPreviewFileChanged: () => noopUnsubscribe,
+    onPreviewFileChanged: (callback: (payload: HermesPreviewFileChanged) => void) =>
+      subscribe('hermes:preview-file-changed', callback),
     onWindowStateChanged: (callback: (payload: HermesWindowState) => void) =>
       subscribe('hermes:window-state-changed', callback),
     openExternal: (url: string) => invoke('open_external', { url }),
@@ -224,7 +236,7 @@ export function installHermesDesktopBridge() {
       setDefaultProjectDir: async (dir: null | string) => ({ dir })
     },
     signalDeepLinkReady: () => invoke('signal_deep_link_ready'),
-    stopPreviewFileWatch: async () => true,
+    stopPreviewFileWatch: (id: string) => invoke<boolean>('stop_preview_file_watch', { id }),
     terminal: {
       dispose: (id: string) => invoke('terminal_dispose', { id }),
       onData: (id: string, callback: (payload: string) => void) => subscribe(`hermes:terminal:${id}:data`, callback),
@@ -251,7 +263,7 @@ export function installHermesDesktopBridge() {
       onProgress: (callback: (payload: unknown) => void) => subscribe('hermes:updates:progress', callback),
       setBranch: (name: string) => invoke('updates_set_branch', { name })
     },
-    watchPreviewFile: async (url: string) => ({ id: url, path: url }),
+    watchPreviewFile: (url: string) => invoke<HermesPreviewWatch>('watch_preview_file', { url }),
     worktrees: async () => ({}),
     writeClipboard: (text: string) => invoke('write_clipboard', { text })
   }

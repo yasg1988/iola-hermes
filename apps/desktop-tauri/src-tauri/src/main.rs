@@ -1,4 +1,5 @@
 use base64::Engine;
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use portable_pty::{native_pty_system, Child as PtyChild, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -20,6 +21,7 @@ struct AppState {
     backend: Arc<Mutex<Option<BackendRuntime>>>,
     boot_progress: Arc<Mutex<BootProgress>>,
     oauth_sessions: Arc<Mutex<Option<HashMap<String, StoredOauthSession>>>>,
+    preview_watchers: Arc<Mutex<HashMap<String, PreviewWatcherRuntime>>>,
     terminals: Arc<Mutex<HashMap<String, TerminalRuntime>>>,
 }
 
@@ -39,6 +41,10 @@ struct TerminalRuntime {
     child: Box<dyn PtyChild + Send>,
     master: Box<dyn MasterPty + Send>,
     writer: Box<dyn Write + Send>,
+}
+
+struct PreviewWatcherRuntime {
+    _watcher: RecommendedWatcher,
 }
 
 #[derive(Debug, Serialize)]
@@ -231,6 +237,19 @@ struct ReadDirEntry {
 struct ReadDirResult {
     entries: Vec<ReadDirEntry>,
     error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct PreviewFileChanged {
+    id: String,
+    path: String,
+    url: String,
+}
+
+#[derive(Debug, Serialize)]
+struct PreviewWatch {
+    id: String,
+    path: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -870,6 +889,98 @@ fn read_file_data_url(file_path: String) -> Result<String, String> {
     let bytes = fs::read(&path).map_err(|error| format!("Не удалось прочитать файл: {error}"))?;
     let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
     Ok(format!("data:{};base64,{encoded}", mime_for_path(&path)))
+}
+
+#[tauri::command]
+fn watch_preview_file(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    url: String,
+) -> Result<PreviewWatch, String> {
+    let file_path = file_path_from_preview_url(&url)?;
+    if !file_path.is_file() {
+        return Err("Файл предпросмотра не найден".to_string());
+    }
+    let watch_dir = file_path
+        .parent()
+        .ok_or_else(|| "Не удалось определить папку файла предпросмотра".to_string())?
+        .to_path_buf();
+    let target_name = file_path
+        .file_name()
+        .map(|value| value.to_string_lossy().to_string())
+        .ok_or_else(|| "Не удалось определить имя файла предпросмотра".to_string())?;
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    let normalized_path = normalize_path_string(file_path.clone());
+    let event_path = file_path.clone();
+    let event_id = id.clone();
+    let event_app = app.clone();
+
+    let mut watcher = RecommendedWatcher::new(
+        move |result: notify::Result<notify::Event>| {
+            let Ok(event) = result else {
+                return;
+            };
+            if !matches!(
+                event.kind,
+                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+            ) {
+                return;
+            }
+            if !event.paths.is_empty()
+                && !event.paths.iter().any(|path| {
+                    path.file_name()
+                        .map(|value| value.to_string_lossy() == target_name)
+                        .unwrap_or(false)
+                })
+            {
+                return;
+            }
+            if !event_path.is_file() {
+                return;
+            }
+            let payload_path = normalize_path_string(event_path.clone());
+            let payload_url = file_url_for_path(&event_path);
+            let payload = PreviewFileChanged {
+                id: event_id.clone(),
+                path: payload_path,
+                url: payload_url,
+            };
+            let event_app = event_app.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(120));
+                if let Some(window) = event_app.get_webview_window("main") {
+                    let _ = window.emit("hermes:preview-file-changed", payload);
+                }
+            });
+        },
+        Config::default(),
+    )
+    .map_err(|error| format!("Не удалось создать watcher предпросмотра: {error}"))?;
+    watcher
+        .watch(&watch_dir, RecursiveMode::NonRecursive)
+        .map_err(|error| format!("Не удалось запустить watcher предпросмотра: {error}"))?;
+
+    state
+        .preview_watchers
+        .lock()
+        .map_err(|_| "Preview watcher state lock poisoned".to_string())?
+        .insert(id.clone(), PreviewWatcherRuntime { _watcher: watcher });
+
+    Ok(PreviewWatch {
+        id,
+        path: normalized_path,
+    })
+}
+
+#[tauri::command]
+fn stop_preview_file_watch(state: tauri::State<'_, AppState>, id: String) -> Result<bool, String> {
+    let removed = state
+        .preview_watchers
+        .lock()
+        .map_err(|_| "Preview watcher state lock poisoned".to_string())?
+        .remove(&id)
+        .is_some();
+    Ok(removed)
 }
 
 #[tauri::command]
@@ -2348,6 +2459,26 @@ fn canonical_or_self(path: PathBuf) -> PathBuf {
     path.canonicalize().unwrap_or(path)
 }
 
+fn file_path_from_preview_url(raw_url: &str) -> Result<PathBuf, String> {
+    if raw_url.trim().is_empty() {
+        return Err("Пустой путь предпросмотра".to_string());
+    }
+    if let Ok(parsed) = reqwest::Url::parse(raw_url) {
+        if parsed.scheme() == "file" {
+            return parsed
+                .to_file_path()
+                .map_err(|_| "Не удалось преобразовать file:// URL в путь".to_string());
+        }
+    }
+    Ok(PathBuf::from(raw_url))
+}
+
+fn file_url_for_path(path: &Path) -> String {
+    reqwest::Url::from_file_path(path)
+        .map(|url| url.to_string())
+        .unwrap_or_else(|_| normalize_path_string(path.to_path_buf()))
+}
+
 fn normalize_path_string(path: PathBuf) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
@@ -2929,6 +3060,7 @@ fn main() {
             backend: Arc::new(Mutex::new(None)),
             boot_progress: Arc::new(Mutex::new(default_boot_progress())),
             oauth_sessions: Arc::new(Mutex::new(None)),
+            preview_watchers: Arc::new(Mutex::new(HashMap::new())),
             terminals: Arc::new(Mutex::new(HashMap::new())),
         })
         .manage(DeepLinkState {
@@ -2999,6 +3131,7 @@ fn main() {
             set_translucency,
             signal_deep_link_ready,
             start_backend,
+            stop_preview_file_watch,
             terminal_dispose,
             terminal_resize,
             terminal_start,
@@ -3010,6 +3143,7 @@ fn main() {
             updates_check,
             updates_get_branch,
             updates_set_branch,
+            watch_preview_file,
             write_clipboard,
         ])
         .plugin(tauri_plugin_clipboard_manager::init())
