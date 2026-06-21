@@ -11,8 +11,10 @@ use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child as ProcessChild, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
-use tauri::{Emitter, Manager, Theme, WebviewWindow, WindowEvent};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tauri::{
+    Emitter, Manager, Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::DialogExt;
@@ -694,7 +696,7 @@ fn probe_connection_config(remote_url: String) -> DesktopConnectionProbeResult {
 }
 
 #[tauri::command]
-fn oauth_login_connection_config(
+async fn oauth_login_connection_config(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     remote_url: String,
@@ -705,13 +707,7 @@ fn oauth_login_connection_config(
     let password_provider = providers.iter().find(|provider| provider.supports_password);
 
     let Some(provider) = password_provider else {
-        return Ok(serde_json::json!({
-            "ok": false,
-            "baseUrl": base_url,
-            "connected": false,
-            "requiresExternalOauth": true,
-            "error": "OAuth redirect-вход в Tauri пока не поддерживается. Для Tauri сейчас поддержан password gateway."
-        }));
+        return oauth_redirect_login_connection_config(&app, &state, &base_url, &providers);
     };
 
     let username = credentials
@@ -2140,6 +2136,107 @@ fn oauth_client() -> Result<reqwest::blocking::Client, String> {
         .timeout(Duration::from_secs(30))
         .build()
         .map_err(|error| format!("Не удалось создать OAuth HTTP client: {error}"))
+}
+
+fn oauth_redirect_login_connection_config(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, AppState>,
+    base_url: &str,
+    providers: &[DesktopAuthProvider],
+) -> Result<serde_json::Value, String> {
+    let login_url = reqwest::Url::parse(&format!("{base_url}/login"))
+        .map_err(|error| format!("Некорректный URL входа gateway: {error}"))?;
+    let label = format!("oauth-login-{}", timestamp_millis());
+    let login_window = WebviewWindowBuilder::new(app, label, WebviewUrl::External(login_url))
+        .title("Вход в Hermes gateway")
+        .inner_size(520.0, 720.0)
+        .resizable(true)
+        .build()
+        .map_err(|error| format!("Не удалось открыть окно OAuth-входа: {error}"))?;
+
+    let closed = Arc::new(Mutex::new(false));
+    let closed_for_event = Arc::clone(&closed);
+    login_window.on_window_event(move |event| {
+        if matches!(
+            event,
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+        ) {
+            if let Ok(mut guard) = closed_for_event.lock() {
+                *guard = true;
+            }
+        }
+    });
+
+    let client = oauth_client()?;
+    let deadline = Instant::now() + Duration::from_secs(300);
+    let provider_label = providers
+        .first()
+        .map(|provider| provider.display_name.clone())
+        .unwrap_or_else(|| "OAuth".to_string());
+
+    while Instant::now() < deadline {
+        if closed.lock().map(|guard| *guard).unwrap_or(true) {
+            return Ok(serde_json::json!({
+                "ok": false,
+                "baseUrl": base_url,
+                "connected": false,
+                "requiresExternalOauth": true,
+                "error": "Окно входа закрыто до завершения авторизации."
+            }));
+        }
+
+        let mut session = oauth_session_from_webview(&login_window, base_url)?;
+        if !session.cookies.is_empty()
+            && oauth_session_connected_with_session(&client, base_url, &mut session)
+        {
+            save_oauth_session(app, state, base_url, session)?;
+            let _ = login_window.close();
+            return Ok(serde_json::json!({
+                "ok": true,
+                "baseUrl": base_url,
+                "connected": true,
+                "providerLabel": provider_label
+            }));
+        }
+
+        std::thread::sleep(Duration::from_millis(750));
+    }
+
+    let _ = login_window.close();
+    Ok(serde_json::json!({
+        "ok": false,
+        "baseUrl": base_url,
+        "connected": false,
+        "requiresExternalOauth": true,
+        "error": "Вход не завершен за 5 минут. Повторите попытку."
+    }))
+}
+
+fn oauth_session_from_webview(
+    window: &WebviewWindow,
+    base_url: &str,
+) -> Result<StoredOauthSession, String> {
+    let cookie_url = reqwest::Url::parse(&format!("{base_url}/api/auth/me"))
+        .map_err(|error| format!("Некорректный URL проверки gateway: {error}"))?;
+    let cookies = window
+        .cookies_for_url(cookie_url)
+        .map_err(|error| format!("Не удалось прочитать OAuth cookies из WebView: {error}"))?;
+    let mut session = StoredOauthSession::default();
+    for cookie in cookies {
+        let name = cookie.name().trim();
+        let value = cookie.value().trim();
+        if !name.is_empty() && !value.is_empty() {
+            session.cookies.insert(name.to_string(), value.to_string());
+        }
+    }
+    Ok(session)
+}
+
+fn timestamp_millis() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default()
 }
 
 fn oauth_sessions_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {

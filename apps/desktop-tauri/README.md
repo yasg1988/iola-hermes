@@ -43,6 +43,9 @@ TypeScript-слой устанавливает совместимый `window.he
   сохранением, применением, проверкой и probe `/api/status`;
 - password gateway: вход по логину/паролю, локальное хранение session cookies
   и получение свежего `ws-ticket` для WebSocket-подключения;
+- redirect OAuth gateway: отдельное окно входа `/login`, проверка сессии через
+  `/api/auth/me`, локальное хранение session cookies и получение свежего
+  `ws-ticket` для WebSocket-подключения;
 - события запуска локального backend через `onBootProgress`;
 - событие завершения локального backend через `onBackendExit`;
 - синхронизация native theme и события состояния окна через
@@ -59,5 +62,4 @@ TypeScript-слой устанавливает совместимый `window.he
   auto-update, multi-window и notification/focus events;
 - доработать runtime translucency/titlebar tint, если выбранная платформа и
   Tauri API позволят применить эффект без нестабильных системных вызовов;
-- перенести redirect OAuth login flow для remote gateway;
 - прогнать ручной сценарий запуска установленного приложения.
