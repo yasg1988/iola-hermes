@@ -1,16 +1,18 @@
 'use strict'
 
 const { spawnSync } = require('node:child_process')
+const pkg = require('../package.json')
 
 if (process.env.IOLA_HERMES_SKIP_PYTHON_INSTALL === '1') {
   console.log('Установка Python backend Hermes RU Iola пропущена.')
   process.exit(0)
 }
 
-const spec = process.env.IOLA_HERMES_PYTHON_SPEC || 'git+https://github.com/yasg1988/iola-hermes.git'
+const spec = process.env.IOLA_HERMES_PYTHON_SPEC || `iola-hermes==${pkg.version}`
 const candidates =
   process.platform === 'win32'
     ? [
+        { command: 'py', prefix: ['-3.14'] },
         { command: 'py', prefix: ['-3.13'] },
         { command: 'py', prefix: ['-3.12'] },
         { command: 'py', prefix: ['-3.11'] },
@@ -38,5 +40,5 @@ for (const candidate of candidates) {
   process.exit(install.status ?? 0)
 }
 
-console.error('Python не найден. Установите Python 3.11-3.13 и повторите npm install -g iola-hermes.')
+console.error('Python не найден. Установите Python 3.11-3.14 и повторите npm install -g iola-hermes.')
 process.exit(1)

@@ -12,10 +12,10 @@ npm install -g iola-hermes
 iola-hermes
 ```
 
-Пакет устанавливает Python backend из репозитория:
+Пакет устанавливает Python backend из PyPI той же версии, что и npm-пакет:
 
 ```text
-https://github.com/yasg1988/iola-hermes
+iola-hermes
 ```
 
 После установки команда `iola-hermes` запускает Hermes CLI через
@@ -24,7 +24,7 @@ https://github.com/yasg1988/iola-hermes
 ## Требования
 
 - Node.js 18+
-- Python `>=3.11,<3.14`
+- Python `>=3.11,<3.15`
 - pip
 
 Если backend уже установлен вручную, можно пропустить Python-установку:
