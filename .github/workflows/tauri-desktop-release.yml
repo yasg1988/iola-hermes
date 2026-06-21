@@ -32,13 +32,22 @@ jobs:
       - name: Build Windows Tauri installers
         run: npm run --workspace apps/desktop-tauri build -- --target x86_64-pc-windows-msvc
 
+      - name: Prepare Windows Tauri artifacts
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/desktop-tauri/package.json | ConvertFrom-Json).version
+          $releaseDir = "apps/desktop-tauri/release"
+          New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
+          Copy-Item "apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe" "$releaseDir/Hermes-RU-Iola-Tauri-$version-win-x64.exe"
+          Copy-Item "apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi" "$releaseDir/Hermes-RU-Iola-Tauri-$version-win-x64.msi"
+
       - name: Upload Windows Tauri artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tauri-desktop-windows
           path: |
-            apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-            apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+            apps/desktop-tauri/release/*.exe
+            apps/desktop-tauri/release/*.msi
 
       - name: Attach to GitHub Release
         if: github.event_name == 'release' || github.event.inputs.release_tag != ''
@@ -47,7 +56,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
         shell: pwsh
         run: |
-          Get-ChildItem apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle -Recurse -File |
+          Get-ChildItem apps/desktop-tauri/release -File |
             Where-Object { $_.Extension -in ".exe", ".msi" } |
             ForEach-Object {
               gh release upload "$env:RELEASE_TAG" $_.FullName --repo "$env:GITHUB_REPOSITORY" --clobber
@@ -88,14 +97,23 @@ jobs:
       - name: Build Linux Tauri packages
         run: npm run --workspace apps/desktop-tauri build -- --target x86_64-unknown-linux-gnu
 
+      - name: Prepare Linux Tauri artifacts
+        run: |
+          VERSION="$(node -p "require('./apps/desktop-tauri/package.json').version")"
+          RELEASE_DIR="apps/desktop-tauri/release"
+          mkdir -p "$RELEASE_DIR"
+          cp apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage "$RELEASE_DIR/Hermes-RU-Iola-Tauri-${VERSION}-linux-x86_64.AppImage"
+          cp apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb "$RELEASE_DIR/Hermes-RU-Iola-Tauri-${VERSION}-linux-amd64.deb"
+          cp apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm "$RELEASE_DIR/Hermes-RU-Iola-Tauri-${VERSION}-linux-x86_64.rpm"
+
       - name: Upload Linux Tauri artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tauri-desktop-linux
           path: |
-            apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-            apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
-            apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
+            apps/desktop-tauri/release/*.AppImage
+            apps/desktop-tauri/release/*.deb
+            apps/desktop-tauri/release/*.rpm
 
       - name: Attach to GitHub Release
         if: github.event_name == 'release' || github.event.inputs.release_tag != ''
@@ -103,7 +121,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
         run: |
-          find apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -type f \
+          find apps/desktop-tauri/release -type f \
             \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
             -print0 |
             xargs -0 --no-run-if-empty gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber
