@@ -1784,7 +1784,7 @@ wheels = [
 
 [[package]]
 name = "iola-hermes"
-version = "0.17.3"
+version = "0.17.4"
 source = { editable = "." }
 dependencies = [
     { name = "certifi" },
