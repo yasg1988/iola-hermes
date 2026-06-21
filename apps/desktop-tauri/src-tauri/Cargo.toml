@@ -29,3 +29,4 @@ tauri-plugin-deep-link = "2.4.9"
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }
 tauri-plugin-notification = "2"
+zip = { version = "2", default-features = false, features = ["deflate"] }

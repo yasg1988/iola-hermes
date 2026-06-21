@@ -366,8 +366,8 @@ export function installHermesDesktopBridge() {
     },
     testConnectionConfig: (payload: unknown) => invoke('test_connection_config', { payload }),
     themes: {
-      fetchMarketplace: async () => ({ displayName: '', extensionId: '', themes: [] }),
-      searchMarketplace: async () => []
+      fetchMarketplace: (id: string) => invoke('fetch_marketplace_themes', { id }),
+      searchMarketplace: (query: string) => invoke('search_marketplace_themes', { query })
     },
     touchBackend: async () => ok,
     uninstall: {

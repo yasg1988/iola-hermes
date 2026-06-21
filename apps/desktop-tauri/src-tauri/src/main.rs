@@ -26,6 +26,13 @@ const LINK_TITLE_BYTE_BUDGET: usize = 96 * 1024;
 const LINK_TITLE_TIMEOUT: Duration = Duration::from_secs(5);
 const LINK_TITLE_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
+const MARKETPLACE_GALLERY_QUERY_URL: &str =
+    "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery";
+const MARKETPLACE_MAX_JSON_BYTES: usize = 4 * 1024 * 1024;
+const MARKETPLACE_MAX_VSIX_BYTES: usize = 40 * 1024 * 1024;
+const MARKETPLACE_TIMEOUT: Duration = Duration::from_secs(20);
+const MARKETPLACE_USER_AGENT: &str = "Hermes-RU-Iola-Desktop";
+const MARKETPLACE_VSIX_ASSET_TYPE: &str = "Microsoft.VisualStudio.Services.VSIXPackage";
 const TEXT_PREVIEW_MAX_BYTES: u64 = 512 * 1024;
 
 struct AppState {
@@ -56,6 +63,33 @@ struct TerminalRuntime {
 
 struct PreviewWatcherRuntime {
     _watcher: RecommendedWatcher,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarketplaceSearchItem {
+    extension_id: String,
+    display_name: String,
+    publisher: String,
+    description: String,
+    installs: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarketplaceThemeFile {
+    label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ui_theme: Option<String>,
+    contents: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarketplaceThemeResult {
+    extension_id: String,
+    display_name: String,
+    themes: Vec<MarketplaceThemeFile>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1041,6 +1075,256 @@ fn fetch_link_title(url: String) -> Result<String, String> {
     Ok(usable_link_title(&parse_html_title(
         &String::from_utf8_lossy(&bytes),
     )))
+}
+
+#[tauri::command]
+async fn search_marketplace_themes(query: String) -> Result<Vec<MarketplaceSearchItem>, String> {
+    tauri::async_runtime::spawn_blocking(move || search_marketplace_themes_blocking(&query, 20))
+        .await
+        .map_err(|error| format!("Не удалось выполнить поиск тем: {error}"))?
+}
+
+#[tauri::command]
+async fn fetch_marketplace_themes(id: String) -> Result<MarketplaceThemeResult, String> {
+    tauri::async_runtime::spawn_blocking(move || fetch_marketplace_themes_blocking(&id))
+        .await
+        .map_err(|error| format!("Не удалось загрузить тему: {error}"))?
+}
+
+fn search_marketplace_themes_blocking(
+    query: &str,
+    limit: usize,
+) -> Result<Vec<MarketplaceSearchItem>, String> {
+    let text = query.trim();
+    let page_size = limit.clamp(1, 50);
+    let mut criteria = vec![
+        serde_json::json!({ "filterType": 8, "value": "Microsoft.VisualStudio.Code" }),
+        serde_json::json!({ "filterType": 5, "value": "Themes" }),
+        serde_json::json!({ "filterType": 12, "value": "4096" }),
+    ];
+
+    if !text.is_empty() {
+        criteria.push(serde_json::json!({ "filterType": 10, "value": text }));
+    }
+
+    let payload = serde_json::json!({
+        "filters": [{
+            "criteria": criteria,
+            "pageNumber": 1,
+            "pageSize": (page_size * 2).min(50),
+            "sortBy": 4,
+            "sortOrder": 0
+        }],
+        "flags": 772
+    });
+    let json = marketplace_gallery_query(payload)?;
+    let extensions = json
+        .pointer("/results/0/extensions")
+        .and_then(|value| value.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut items = Vec::new();
+    for extension in extensions {
+        if looks_like_icon_theme(&extension) {
+            continue;
+        }
+
+        let extension_name = json_str(&extension, &["extensionName"]).unwrap_or_default();
+        let publisher_name =
+            json_str(&extension, &["publisher", "publisherName"]).unwrap_or_default();
+        if extension_name.is_empty() || publisher_name.is_empty() {
+            continue;
+        }
+
+        let installs = extension
+            .get("statistics")
+            .and_then(|value| value.as_array())
+            .and_then(|stats| {
+                stats.iter().find_map(|stat| {
+                    if json_str(stat, &["statisticName"]).as_deref() == Some("install") {
+                        stat.get("value").and_then(|value| value.as_f64())
+                    } else {
+                        None
+                    }
+                })
+            })
+            .unwrap_or(0.0)
+            .round()
+            .max(0.0) as u64;
+
+        items.push(MarketplaceSearchItem {
+            extension_id: format!("{publisher_name}.{extension_name}"),
+            display_name: json_str(&extension, &["displayName"]).unwrap_or(extension_name),
+            publisher: json_str(&extension, &["publisher", "displayName"])
+                .unwrap_or(publisher_name),
+            description: json_str(&extension, &["shortDescription"]).unwrap_or_default(),
+            installs,
+        });
+
+        if items.len() >= page_size {
+            break;
+        }
+    }
+
+    Ok(items)
+}
+
+fn fetch_marketplace_themes_blocking(id: &str) -> Result<MarketplaceThemeResult, String> {
+    let extension_id = id.trim();
+    if !valid_marketplace_extension_id(extension_id) {
+        return Err("Ожидается Marketplace id вида \"publisher.extension\".".to_string());
+    }
+
+    let (display_name, vsix_url) = resolve_marketplace_extension(extension_id)?;
+    let client = marketplace_client()?;
+    let mut response = client
+        .get(vsix_url)
+        .header(reqwest::header::USER_AGENT, MARKETPLACE_USER_AGENT)
+        .send()
+        .map_err(|error| format!("Не удалось скачать VSIX: {error}"))?
+        .error_for_status()
+        .map_err(|error| format!("Marketplace вернул ошибку при скачивании VSIX: {error}"))?;
+    let vsix = read_limited_response(&mut response, MARKETPLACE_MAX_VSIX_BYTES)?;
+    let themes = extract_marketplace_themes(vsix)?;
+
+    Ok(MarketplaceThemeResult {
+        extension_id: extension_id.to_string(),
+        display_name,
+        themes,
+    })
+}
+
+fn resolve_marketplace_extension(id: &str) -> Result<(String, String), String> {
+    let payload = serde_json::json!({
+        "filters": [{
+            "criteria": [{ "filterType": 7, "value": id }],
+            "pageNumber": 1,
+            "pageSize": 1
+        }],
+        "flags": 914
+    });
+    let json = marketplace_gallery_query(payload)?;
+    let extension = json
+        .pointer("/results/0/extensions/0")
+        .ok_or_else(|| format!("Расширение \"{id}\" не найдено в Marketplace."))?;
+    let display_name = json_str(extension, &["displayName"]).unwrap_or_else(|| id.to_string());
+    let version = extension
+        .pointer("/versions/0")
+        .ok_or_else(|| format!("У расширения \"{id}\" нет опубликованных версий."))?;
+    let files = version
+        .get("files")
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| format!("У расширения \"{id}\" нет файлов для скачивания."))?;
+    let vsix_url = files
+        .iter()
+        .find(|file| json_str(file, &["assetType"]).as_deref() == Some(MARKETPLACE_VSIX_ASSET_TYPE))
+        .and_then(|file| json_str(file, &["source"]))
+        .ok_or_else(|| format!("Не найден VSIX-пакет для \"{id}\"."))?;
+
+    Ok((display_name, vsix_url))
+}
+
+fn marketplace_gallery_query(payload: serde_json::Value) -> Result<serde_json::Value, String> {
+    let client = marketplace_client()?;
+    let mut response = client
+        .post(MARKETPLACE_GALLERY_QUERY_URL)
+        .header(
+            reqwest::header::ACCEPT,
+            "application/json;api-version=3.0-preview.1",
+        )
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .header(reqwest::header::USER_AGENT, MARKETPLACE_USER_AGENT)
+        .json(&payload)
+        .send()
+        .map_err(|error| format!("Не удалось обратиться к VS Code Marketplace: {error}"))?
+        .error_for_status()
+        .map_err(|error| format!("Marketplace вернул ошибку: {error}"))?;
+    let bytes = read_limited_response(&mut response, MARKETPLACE_MAX_JSON_BYTES)?;
+
+    serde_json::from_slice(&bytes).map_err(|error| format!("Marketplace вернул не JSON: {error}"))
+}
+
+fn marketplace_client() -> Result<reqwest::blocking::Client, String> {
+    reqwest::blocking::Client::builder()
+        .timeout(MARKETPLACE_TIMEOUT)
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .map_err(|error| format!("Не удалось создать HTTP-клиент Marketplace: {error}"))
+}
+
+fn read_limited_response(
+    response: &mut reqwest::blocking::Response,
+    max_bytes: usize,
+) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    let mut buffer = [0_u8; 16 * 1024];
+
+    loop {
+        let read = response
+            .read(&mut buffer)
+            .map_err(|error| format!("Не удалось прочитать ответ: {error}"))?;
+        if read == 0 {
+            break;
+        }
+        bytes.extend_from_slice(&buffer[..read]);
+        if bytes.len() > max_bytes {
+            return Err("Ответ превысил допустимый размер.".to_string());
+        }
+    }
+
+    Ok(bytes)
+}
+
+fn extract_marketplace_themes(vsix: Vec<u8>) -> Result<Vec<MarketplaceThemeFile>, String> {
+    let cursor = Cursor::new(vsix);
+    let mut archive = zip::ZipArchive::new(cursor)
+        .map_err(|error| format!("Некорректный VSIX-архив: {error}"))?;
+    let package_json = read_zip_entry_to_string(&mut archive, "extension/package.json")?;
+    let package: serde_json::Value = serde_json::from_str(&package_json)
+        .map_err(|error| format!("Некорректный package.json расширения: {error}"))?;
+    let contributed = package
+        .pointer("/contributes/themes")
+        .and_then(|value| value.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut themes = Vec::new();
+    for entry in contributed {
+        let Some(path) = json_str(&entry, &["path"]) else {
+            continue;
+        };
+        let name = marketplace_theme_entry_name(&path);
+        let Ok(contents) = read_zip_entry_to_string(&mut archive, &name) else {
+            continue;
+        };
+        let label = json_str(&entry, &["label"])
+            .or_else(|| json_str(&entry, &["id"]))
+            .or_else(|| json_str(&package, &["displayName"]))
+            .or_else(|| json_str(&package, &["name"]))
+            .unwrap_or_else(|| "VS Code Theme".to_string());
+
+        themes.push(MarketplaceThemeFile {
+            label,
+            ui_theme: json_str(&entry, &["uiTheme"]),
+            contents,
+        });
+    }
+
+    Ok(themes)
+}
+
+fn read_zip_entry_to_string<R: Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+    name: &str,
+) -> Result<String, String> {
+    let mut file = archive
+        .by_name(name)
+        .map_err(|error| format!("Не найден файл {name} в VSIX: {error}"))?;
+    let mut text = String::new();
+    file.read_to_string(&mut text)
+        .map_err(|error| format!("Не удалось прочитать {name}: {error}"))?;
+    Ok(text)
 }
 
 #[tauri::command]
@@ -2450,6 +2734,77 @@ fn decode_html_entity(entity: &str) -> Option<char> {
         value if value.starts_with('#') => value[1..].parse::<u32>().ok().and_then(char::from_u32),
         _ => None,
     }
+}
+
+fn valid_marketplace_extension_id(value: &str) -> bool {
+    let mut parts = value.split('.');
+    let Some(publisher) = parts.next() else {
+        return false;
+    };
+    let Some(extension) = parts.next() else {
+        return false;
+    };
+    if parts.next().is_some() || publisher.is_empty() || extension.is_empty() {
+        return false;
+    }
+
+    publisher.chars().all(marketplace_id_char) && extension.chars().all(marketplace_id_char)
+}
+
+fn marketplace_id_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'
+}
+
+fn marketplace_theme_entry_name(theme_path: &str) -> String {
+    let normalized = theme_path
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .trim_start_matches('/')
+        .to_string();
+    format!("extension/{normalized}")
+}
+
+fn looks_like_icon_theme(extension: &serde_json::Value) -> bool {
+    let has_icon_tag = extension
+        .get("tags")
+        .and_then(|value| value.as_array())
+        .map(|tags| {
+            tags.iter().any(|tag| {
+                let tag = tag.as_str().unwrap_or_default().to_ascii_lowercase();
+                tag == "icon-theme" || tag == "product-icon-theme"
+            })
+        })
+        .unwrap_or(false);
+    if has_icon_tag {
+        return true;
+    }
+
+    let text = format!(
+        "{} {}",
+        json_str(extension, &["displayName"]).unwrap_or_default(),
+        json_str(extension, &["shortDescription"]).unwrap_or_default()
+    )
+    .to_ascii_lowercase();
+
+    [
+        "icon theme",
+        "file icon",
+        "file icons",
+        "product icon",
+        "product icons",
+        "icon pack",
+        "fileicons",
+    ]
+    .iter()
+    .any(|needle| text.contains(needle))
+}
+
+fn json_str(value: &serde_json::Value, path: &[&str]) -> Option<String> {
+    let mut current = value;
+    for key in path {
+        current = current.get(*key)?;
+    }
+    current.as_str().map(ToString::to_string)
 }
 
 fn usable_link_title(value: &str) -> String {
@@ -4186,6 +4541,53 @@ mod tests {
     }
 
     #[test]
+    fn validates_marketplace_extension_ids() {
+        assert!(valid_marketplace_extension_id(
+            "dracula-theme.theme-dracula"
+        ));
+        assert!(valid_marketplace_extension_id("publisher_name.theme_1"));
+        assert!(!valid_marketplace_extension_id("theme-only"));
+        assert!(!valid_marketplace_extension_id(".theme"));
+        assert!(!valid_marketplace_extension_id("publisher."));
+        assert!(!valid_marketplace_extension_id("publisher.theme.extra"));
+        assert!(!valid_marketplace_extension_id("publisher/theme.name"));
+    }
+
+    #[test]
+    fn normalizes_marketplace_theme_entry_names() {
+        assert_eq!(
+            marketplace_theme_entry_name("./themes/dark.json"),
+            "extension/themes/dark.json"
+        );
+        assert_eq!(
+            marketplace_theme_entry_name(r"\themes\light.json"),
+            "extension/themes/light.json"
+        );
+    }
+
+    #[test]
+    fn detects_icon_theme_marketplace_results() {
+        let icon = serde_json::json!({
+            "displayName": "Nice Icons",
+            "shortDescription": "A file icon theme",
+            "tags": ["theme"]
+        });
+        let color = serde_json::json!({
+            "displayName": "Nice Dark",
+            "shortDescription": "A color theme",
+            "tags": ["theme"]
+        });
+        let tagged = serde_json::json!({
+            "displayName": "Icons",
+            "tags": ["icon-theme"]
+        });
+
+        assert!(looks_like_icon_theme(&icon));
+        assert!(looks_like_icon_theme(&tagged));
+        assert!(!looks_like_icon_theme(&color));
+    }
+
+    #[test]
     fn resolves_main_git_worktree() {
         let temp = test_temp_dir("main-worktree");
         let repo = temp.join("repo");
@@ -4717,6 +5119,7 @@ fn main() {
             backend_probe,
             backend_version,
             fetch_link_title,
+            fetch_marketplace_themes,
             get_active_profile,
             get_boot_progress,
             get_connection,
@@ -4744,6 +5147,7 @@ fn main() {
             save_image_buffer,
             save_image_from_url,
             save_connection_config,
+            search_marketplace_themes,
             select_paths,
             set_active_profile,
             set_default_project_dir,
