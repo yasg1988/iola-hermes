@@ -17,6 +17,21 @@ interface TerminalExit {
   signal: null | string
 }
 
+interface BackendExit {
+  code: null | number
+  signal: null | string
+}
+
+interface BootProgress {
+  error: null | string
+  fakeMode: boolean
+  message: string
+  phase: string
+  progress: number
+  running: boolean
+  timestamp: number
+}
+
 interface OauthLoginResult {
   baseUrl: string
   connected: boolean
@@ -147,8 +162,8 @@ export function installHermesDesktopBridge() {
     notify: async () => true,
     oauthLoginConnectionConfig,
     oauthLogoutConnectionConfig: (remoteUrl?: string) => invoke('oauth_logout_connection_config', { remoteUrl }),
-    onBackendExit: () => noopUnsubscribe,
-    onBootProgress: () => noopUnsubscribe,
+    onBackendExit: (callback: (payload: BackendExit) => void) => subscribe('hermes:backend-exit', callback),
+    onBootProgress: (callback: (payload: BootProgress) => void) => subscribe('hermes:boot-progress', callback),
     onBootstrapEvent: () => noopUnsubscribe,
     onClosePreviewRequested: () => noopUnsubscribe,
     onDeepLink: () => noopUnsubscribe,

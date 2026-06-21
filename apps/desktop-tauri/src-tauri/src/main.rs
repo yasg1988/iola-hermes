@@ -9,20 +9,21 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child as ProcessChild, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 
 struct AppState {
-    backend: Mutex<Option<BackendRuntime>>,
-    oauth_sessions: Mutex<Option<HashMap<String, StoredOauthSession>>>,
-    terminals: Mutex<HashMap<String, TerminalRuntime>>,
+    backend: Arc<Mutex<Option<BackendRuntime>>>,
+    boot_progress: Arc<Mutex<BootProgress>>,
+    oauth_sessions: Arc<Mutex<Option<HashMap<String, StoredOauthSession>>>>,
+    terminals: Arc<Mutex<HashMap<String, TerminalRuntime>>>,
 }
 
 struct BackendRuntime {
-    child: ProcessChild,
+    pid: u32,
     port: u16,
     python: String,
     token: String,
@@ -153,7 +154,7 @@ struct ApiRequest {
     profile: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BootProgress {
     error: Option<String>,
@@ -163,6 +164,12 @@ struct BootProgress {
     progress: u8,
     running: bool,
     timestamp: u128,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct BackendExit {
+    code: Option<i32>,
+    signal: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -324,11 +331,12 @@ fn backend_version() -> Result<String, String> {
 
 #[tauri::command]
 fn start_backend(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     _host: Option<String>,
     port: Option<u16>,
 ) -> Result<BackendProcess, String> {
-    let connection = ensure_backend(&state, port)?;
+    let connection = ensure_backend(&app, &state, port)?;
 
     Ok(BackendProcess {
         pid: connection.pid,
@@ -349,7 +357,7 @@ fn get_connection(
     if let Some(connection) = remote_connection_from_config(&app, &state)? {
         return Ok(connection);
     }
-    let backend = ensure_backend(&state, None)?;
+    let backend = ensure_backend(&app, &state, None)?;
     Ok(backend.connection())
 }
 
@@ -362,24 +370,17 @@ fn get_gateway_ws_url(
     if let Some(connection) = remote_connection_from_config(&app, &state)? {
         return Ok(connection.ws_url);
     }
-    let backend = ensure_backend(&state, None)?;
+    let backend = ensure_backend(&app, &state, None)?;
     Ok(backend.ws_url)
 }
 
 #[tauri::command]
-fn get_boot_progress() -> BootProgress {
-    BootProgress {
-        error: None,
-        fake_mode: false,
-        message: "Hermes RU Iola Tauri готов.".to_string(),
-        phase: "tauri.ready".to_string(),
-        progress: 100,
-        running: false,
-        timestamp: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis())
-            .unwrap_or(0),
-    }
+fn get_boot_progress(state: tauri::State<'_, AppState>) -> BootProgress {
+    state
+        .boot_progress
+        .lock()
+        .map(|progress| progress.clone())
+        .unwrap_or_else(|_| default_boot_progress())
 }
 
 #[tauri::command]
@@ -391,7 +392,7 @@ fn hermes_api(
     if let Some(connection) = remote_backend_connection_from_config(&app, &state)? {
         return connection.api(request);
     }
-    let backend = ensure_backend(&state, None)?;
+    let backend = ensure_backend(&app, &state, None)?;
     backend.api(request)
 }
 
@@ -458,7 +459,7 @@ fn test_connection_config(
     let connection = if config.mode == "remote" {
         remote_backend_connection(&config, Some((&app, &state)))?
     } else {
-        ensure_backend(&state, None)?
+        ensure_backend(&app, &state, None)?
     };
     let status = connection.api(ApiRequest {
         body: None,
@@ -1344,6 +1345,7 @@ impl BackendConnection {
 }
 
 fn ensure_backend(
+    app: &tauri::AppHandle,
     state: &tauri::State<'_, AppState>,
     requested_port: Option<u16>,
 ) -> Result<BackendConnection, String> {
@@ -1352,18 +1354,20 @@ fn ensure_backend(
         .lock()
         .map_err(|_| "Backend state lock poisoned".to_string())?;
 
-    if let Some(runtime) = guard.as_mut() {
-        if runtime
-            .child
-            .try_wait()
-            .map_err(|e| e.to_string())?
-            .is_none()
-        {
-            return Ok(runtime.connection());
-        }
+    if let Some(runtime) = guard.as_ref() {
+        return Ok(runtime.connection());
     }
 
-    let runtime = launch_backend(requested_port)?;
+    emit_boot_progress(
+        app,
+        state,
+        "tauri.backend.resolve",
+        "Проверяю Hermes backend.",
+        12,
+        true,
+        None,
+    );
+    let runtime = launch_backend(app, state, requested_port)?;
     let connection = runtime.connection();
     *guard = Some(runtime);
     Ok(connection)
@@ -1376,7 +1380,7 @@ impl BackendRuntime {
             base_url: format!("http://127.0.0.1:{}", self.port),
             mode: "local".to_string(),
             oauth_session: None,
-            pid: self.child.id(),
+            pid: self.pid,
             python: self.python.clone(),
             source: "local".to_string(),
             token: self.token.clone(),
@@ -1385,12 +1389,100 @@ impl BackendRuntime {
     }
 }
 
-fn launch_backend(requested_port: Option<u16>) -> Result<BackendRuntime, String> {
+fn default_boot_progress() -> BootProgress {
+    BootProgress {
+        error: None,
+        fake_mode: false,
+        message: "Hermes RU Iola Tauri запускается.".to_string(),
+        phase: "tauri.init".to_string(),
+        progress: 2,
+        running: true,
+        timestamp: now_millis(),
+    }
+}
+
+fn emit_boot_progress(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, AppState>,
+    phase: &str,
+    message: &str,
+    progress: u8,
+    running: bool,
+    error: Option<String>,
+) {
+    let payload = BootProgress {
+        error,
+        fake_mode: false,
+        message: message.to_string(),
+        phase: phase.to_string(),
+        progress,
+        running,
+        timestamp: now_millis(),
+    };
+    if let Ok(mut current) = state.boot_progress.lock() {
+        *current = payload.clone();
+    }
+    let _ = app.emit("hermes:boot-progress", payload);
+}
+
+fn watch_backend_exit(
+    app: tauri::AppHandle,
+    state: &tauri::State<'_, AppState>,
+    mut child: ProcessChild,
+) {
+    let backend_state = Arc::clone(&state.backend);
+    let boot_progress = Arc::clone(&state.boot_progress);
+    std::thread::spawn(move || {
+        let status = child.wait().ok();
+        if let Ok(mut backend) = backend_state.lock() {
+            *backend = None;
+        }
+        let code = status.and_then(|value| value.code());
+        let payload = BackendExit { code, signal: None };
+        if let Ok(mut progress) = boot_progress.lock() {
+            let current_progress = progress.progress;
+            *progress = BootProgress {
+                error: Some("Hermes dashboard завершился.".to_string()),
+                fake_mode: false,
+                message: "Hermes dashboard завершился.".to_string(),
+                phase: "tauri.backend.exit".to_string(),
+                progress: current_progress,
+                running: false,
+                timestamp: now_millis(),
+            };
+        }
+        let _ = app.emit("hermes:backend-exit", payload);
+    });
+}
+
+fn launch_backend(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, AppState>,
+    requested_port: Option<u16>,
+) -> Result<BackendRuntime, String> {
     let python = find_python().ok_or_else(|| "Python 3.11-3.14 не найден".to_string())?;
+    emit_boot_progress(
+        app,
+        state,
+        "tauri.backend.python",
+        "Проверяю Python и hermes_cli.",
+        20,
+        true,
+        None,
+    );
     can_import_hermes(&python)?;
 
     let port = requested_port.unwrap_or_else(find_free_port);
     let token = uuid::Uuid::new_v4().simple().to_string();
+    emit_boot_progress(
+        app,
+        state,
+        "tauri.backend.spawn",
+        "Запускаю локальный Hermes dashboard.",
+        35,
+        true,
+        None,
+    );
     let mut child = Command::new(&python);
     child.args([
         "-m",
@@ -1418,11 +1510,31 @@ fn launch_backend(requested_port: Option<u16>) -> Result<BackendRuntime, String>
         .spawn()
         .map_err(|error| format!("Не удалось запустить Hermes dashboard: {error}"))?;
 
+    let pid = child.id();
+    emit_boot_progress(
+        app,
+        state,
+        "tauri.backend.wait",
+        "Жду готовности Hermes dashboard API.",
+        55,
+        true,
+        None,
+    );
     wait_for_backend_ready(&mut child, port, &token, Duration::from_secs(45))?;
+    watch_backend_exit(app.clone(), state, child);
+    emit_boot_progress(
+        app,
+        state,
+        "tauri.backend.ready",
+        "Hermes dashboard готов.",
+        100,
+        false,
+        None,
+    );
 
     Ok(BackendRuntime {
-        child,
         port,
+        pid,
         python: python.to_string_lossy().into_owned(),
         token,
     })
@@ -2668,9 +2780,10 @@ fn windows_powershell_path() -> Option<PathBuf> {
 fn main() {
     tauri::Builder::default()
         .manage(AppState {
-            backend: Mutex::new(None),
-            oauth_sessions: Mutex::new(None),
-            terminals: Mutex::new(HashMap::new()),
+            backend: Arc::new(Mutex::new(None)),
+            boot_progress: Arc::new(Mutex::new(default_boot_progress())),
+            oauth_sessions: Arc::new(Mutex::new(None)),
+            terminals: Arc::new(Mutex::new(HashMap::new())),
         })
         .invoke_handler(tauri::generate_handler![
             apply_connection_config,
