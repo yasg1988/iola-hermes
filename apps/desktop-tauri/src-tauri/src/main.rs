@@ -1643,7 +1643,7 @@ fn default_boot_progress() -> BootProgress {
     BootProgress {
         error: None,
         fake_mode: false,
-        message: "Hermes RU Iola Tauri запускается.".to_string(),
+        message: "Hermes RU Iola запускается.".to_string(),
         phase: "tauri.init".to_string(),
         progress: 2,
         running: true,
@@ -3655,5 +3655,5 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .run(tauri::generate_context!())
-        .expect("failed to run Hermes RU Iola Tauri");
+        .expect("failed to run Hermes RU Iola");
 }

@@ -1,7 +1,7 @@
 [package]
 name = "iola-hermes-desktop-tauri"
 version = "0.17.2"
-description = "Экспериментальная Tauri-оболочка Hermes RU Iola"
+description = "Легкое desktop-приложение Hermes RU Iola"
 authors = ["Yakunin"]
 license = "MIT"
 repository = "https://github.com/yasg1988/iola-hermes"

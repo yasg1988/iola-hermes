@@ -94,13 +94,12 @@ Desktop-приложение основано на Electron-сборке upstrea
 
 Скрипты сборки находятся в `apps/desktop/package.json`.
 
-Дополнительно в `apps/desktop-tauri` есть экспериментальная легкая
-Tauri-оболочка на Rust. Она уже собирает основной React-интерфейс desktop и
-запускает локальный backend через Tauri-мост, но пока не заменяет
-Electron-релиз: часть системных функций еще переносится с Electron main
-process. Запуск проверки: `npm run tauri:check`.
-Сборка Tauri-артефактов Windows/Linux настроена в workflow
-`tauri-desktop-release.yml`.
+Дополнительно в `apps/desktop-tauri` есть легкое Tauri-приложение на Rust и
+системном WebView. Оно собирает основной React-интерфейс desktop, запускает
+локальный backend через Tauri-мост, поддерживает gateway-подключения,
+обновления, уведомления, deep links и отдельные окна сессий. Проверка:
+`npm run tauri:check`. Сборка Tauri-артефактов Windows/Linux настроена в
+workflow `tauri-desktop-release.yml`.
 
 ## Русификация
 

@@ -27,10 +27,10 @@ app.innerHTML = `
   <section class="shell">
     <header class="header">
       <div>
-        <h1 class="title">Hermes RU Iola Tauri</h1>
-        <p class="subtitle">Экспериментальная легкая оболочка на Rust + системный WebView.</p>
+        <h1 class="title">Hermes RU Iola</h1>
+        <p class="subtitle">Легкое desktop-приложение на Rust + системном WebView.</p>
       </div>
-      <div class="badge">MVP</div>
+      <div class="badge">Desktop</div>
     </header>
 
     <section class="panel">
