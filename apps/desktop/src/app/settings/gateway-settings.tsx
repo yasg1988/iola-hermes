@@ -103,6 +103,7 @@ export function GatewaySettings() {
   const [signingIn, setSigningIn] = useState(false)
   const [state, setState] = useState<GatewaySettingsState>(EMPTY_STATE)
   const [remoteToken, setRemoteToken] = useState('')
+  const [passwordLogin, setPasswordLogin] = useState({ password: '', username: '' })
   const [lastTest, setLastTest] = useState<null | string>(null)
 
   // Connection scope: null = the global/default connection (the original
@@ -136,6 +137,7 @@ export function GatewaySettings() {
     // Clear scope-local entry state so a token from one scope can't leak into
     // the next when switching profiles.
     setRemoteToken('')
+    setPasswordLogin({ password: '', username: '' })
     setLastTest(null)
 
     desktop
@@ -346,9 +348,18 @@ export function GatewaySettings() {
 
       setState(saved)
 
-      const result = await window.hermesDesktop.oauthLoginConnectionConfig(trimmedUrl)
+      const result = await window.hermesDesktop.oauthLoginConnectionConfig(
+        trimmedUrl,
+        isPasswordProvider
+          ? {
+              password: passwordLogin.password,
+              username: passwordLogin.username
+            }
+          : undefined
+      )
 
       if (result.connected) {
+        setPasswordLogin({ password: '', username: '' })
         const refreshed = await window.hermesDesktop.getConnectionConfig(scope)
         setState(refreshed)
         notify({ kind: 'success', title: g.signedIn, message: g.connectedTo(providerLabel) })
@@ -371,6 +382,7 @@ export function GatewaySettings() {
 
     try {
       await window.hermesDesktop.oauthLogoutConnectionConfig(trimmedUrl || undefined)
+      setPasswordLogin({ password: '', username: '' })
       const refreshed = await window.hermesDesktop.getConnectionConfig(scope)
       setState(refreshed)
       notify({ kind: 'success', title: g.signedOutTitle, message: g.signedOutMessage })
@@ -540,7 +552,15 @@ export function GatewaySettings() {
                   </Button>
                 </div>
               ) : (
-                <Button disabled={signingIn || state.envOverride || !trimmedUrl} onClick={() => void signIn()}>
+                <Button
+                  disabled={
+                    signingIn ||
+                    state.envOverride ||
+                    !trimmedUrl ||
+                    (isPasswordProvider && (!passwordLogin.username.trim() || !passwordLogin.password))
+                  }
+                  onClick={() => void signIn()}
+                >
                   {signingIn ? <Loader2 className="animate-spin" /> : <LogIn />}
                   {isPasswordProvider ? g.signIn : g.signInWith(providerLabel)}
                 </Button>
@@ -557,6 +577,40 @@ export function GatewaySettings() {
             }
             title={g.authTitle}
           />
+        ) : null}
+
+        {state.mode === 'remote' && authResolved && authMode === 'oauth' && isPasswordProvider && !oauthConnected ? (
+          <>
+            <ListRow
+              action={
+                <Input
+                  autoComplete="username"
+                  className={cn('h-8', CONTROL_TEXT)}
+                  disabled={state.envOverride || signingIn}
+                  onChange={event => setPasswordLogin(current => ({ ...current, username: event.target.value }))}
+                  placeholder="Введите логин"
+                  value={passwordLogin.username}
+                />
+              }
+              description="Используется только для входа в этот gateway."
+              title="Логин"
+            />
+            <ListRow
+              action={
+                <Input
+                  autoComplete="current-password"
+                  className={cn('h-8', CONTROL_TEXT)}
+                  disabled={state.envOverride || signingIn}
+                  onChange={event => setPasswordLogin(current => ({ ...current, password: event.target.value }))}
+                  placeholder="Введите пароль"
+                  type="password"
+                  value={passwordLogin.password}
+                />
+              }
+              description="Пароль не сохраняется в настройках Hermes RU Iola."
+              title="Пароль"
+            />
+          </>
         ) : null}
 
         {/* Session-token gateways: keep the existing token entry box. */}

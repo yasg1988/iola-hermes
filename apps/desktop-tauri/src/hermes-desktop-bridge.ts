@@ -17,6 +17,16 @@ interface TerminalExit {
   signal: null | string
 }
 
+interface OauthLoginResult {
+  baseUrl: string
+  connected: boolean
+  error?: string
+  ok: boolean
+  providerLabel?: string
+  requiresCredentials?: boolean
+  requiresExternalOauth?: boolean
+}
+
 const noopUnsubscribe: Unsubscribe = () => undefined
 
 const ok = { ok: true }
@@ -103,6 +113,10 @@ function normalizeUninstallMode(input: unknown) {
   return 'lite'
 }
 
+async function oauthLoginConnectionConfig(remoteUrl: string, credentials?: { password: string; username: string }) {
+  return invoke<OauthLoginResult>('oauth_login_connection_config', { credentials, remoteUrl })
+}
+
 export function installHermesDesktopBridge() {
   const target = bridgeWindow()
   if (target.hermesDesktop) {
@@ -131,7 +145,7 @@ export function installHermesDesktopBridge() {
       url: targetPath
     }),
     notify: async () => true,
-    oauthLoginConnectionConfig: (remoteUrl: string) => invoke('oauth_login_connection_config', { remoteUrl }),
+    oauthLoginConnectionConfig,
     oauthLogoutConnectionConfig: (remoteUrl?: string) => invoke('oauth_logout_connection_config', { remoteUrl }),
     onBackendExit: () => noopUnsubscribe,
     onBootProgress: () => noopUnsubscribe,

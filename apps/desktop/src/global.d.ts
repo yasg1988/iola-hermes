@@ -32,7 +32,10 @@ declare global {
       applyConnectionConfig: (payload: DesktopConnectionConfigInput) => Promise<DesktopConnectionConfig>
       testConnectionConfig: (payload: DesktopConnectionConfigInput) => Promise<DesktopConnectionTestResult>
       probeConnectionConfig: (remoteUrl: string) => Promise<DesktopConnectionProbeResult>
-      oauthLoginConnectionConfig: (remoteUrl: string) => Promise<DesktopOauthLoginResult>
+      oauthLoginConnectionConfig: (
+        remoteUrl: string,
+        credentials?: { password: string; username: string }
+      ) => Promise<DesktopOauthLoginResult>
       oauthLogoutConnectionConfig: (remoteUrl?: string) => Promise<DesktopOauthLogoutResult>
       profile: {
         get: () => Promise<DesktopActiveProfile>
