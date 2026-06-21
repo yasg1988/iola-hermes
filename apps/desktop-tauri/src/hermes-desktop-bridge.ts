@@ -386,7 +386,7 @@ export function installHermesDesktopBridge() {
       setBranch: (name: string) => invoke('updates_set_branch', { name })
     },
     watchPreviewFile: (url: string) => invoke<HermesPreviewWatch>('watch_preview_file', { url }),
-    worktrees: async () => ({}),
+    worktrees: (cwds: string[]) => invoke('worktrees', { cwds }),
     writeClipboard: (text: string) => invoke('write_clipboard', { text })
   }
 }

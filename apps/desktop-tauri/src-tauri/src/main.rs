@@ -215,6 +215,15 @@ struct HermesWindowState {
     window_button_position: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HermesWorktreeInfo {
+    repo_root: String,
+    worktree_root: String,
+    is_main_worktree: bool,
+    branch: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct HermesTitleBarTheme {
@@ -1180,6 +1189,18 @@ fn git_root(path: String) -> Option<String> {
         }
     }
     None
+}
+
+#[tauri::command]
+fn worktrees(cwds: Vec<String>) -> HashMap<String, Option<HermesWorktreeInfo>> {
+    let mut result = HashMap::new();
+    for cwd in cwds {
+        if cwd.trim().is_empty() || result.contains_key(&cwd) {
+            continue;
+        }
+        result.insert(cwd.clone(), resolve_worktree(&PathBuf::from(cwd)));
+    }
+    result
 }
 
 #[tauri::command]
@@ -2181,6 +2202,93 @@ fn usable_link_title(value: &str) -> String {
     }
 }
 
+fn resolve_worktree(start_path: &Path) -> Option<HermesWorktreeInfo> {
+    let resolved = canonical_or_self(start_path.to_path_buf());
+    let start = if resolved.is_file() {
+        resolved.parent()?.to_path_buf()
+    } else if resolved.is_dir() {
+        resolved
+    } else {
+        return None;
+    };
+    let host = find_git_host(&start)?;
+    resolve_worktree_from_host(&host)
+}
+
+fn find_git_host(start: &Path) -> Option<PathBuf> {
+    let mut current = start.to_path_buf();
+    for _ in 0..64 {
+        if current.join(".git").exists() {
+            return Some(current);
+        }
+        if !current.pop() {
+            return None;
+        }
+    }
+    None
+}
+
+fn resolve_worktree_from_host(host: &Path) -> Option<HermesWorktreeInfo> {
+    let dotgit = host.join(".git");
+    if dotgit.is_dir() {
+        return Some(HermesWorktreeInfo {
+            repo_root: normalize_path_string(host.to_path_buf()),
+            worktree_root: normalize_path_string(host.to_path_buf()),
+            is_main_worktree: true,
+            branch: read_git_branch(&dotgit),
+        });
+    }
+    if !dotgit.is_file() {
+        return None;
+    }
+
+    let contents = fs::read_to_string(&dotgit).ok()?;
+    let gitdir = contents
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("gitdir:").map(str::trim))?;
+    let admin_dir = resolve_relative_path(host, gitdir);
+    let common_dir = fs::read_to_string(admin_dir.join("commondir"))
+        .ok()
+        .map(|raw| resolve_relative_path(&admin_dir, raw.trim()))
+        .unwrap_or_else(|| {
+            admin_dir
+                .parent()
+                .and_then(Path::parent)
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| admin_dir.clone())
+        });
+    let repo_root = common_dir.parent()?.to_path_buf();
+
+    Some(HermesWorktreeInfo {
+        repo_root: normalize_path_string(repo_root),
+        worktree_root: normalize_path_string(host.to_path_buf()),
+        is_main_worktree: false,
+        branch: read_git_branch(&admin_dir),
+    })
+}
+
+fn resolve_relative_path(base: &Path, value: &str) -> PathBuf {
+    let path = PathBuf::from(value);
+    if path.is_absolute() {
+        canonical_or_self(path)
+    } else {
+        canonical_or_self(base.join(path))
+    }
+}
+
+fn read_git_branch(git_dir: &Path) -> Option<String> {
+    let head = fs::read_to_string(git_dir.join("HEAD")).ok()?;
+    let head = head.trim();
+    if let Some(branch) = head.strip_prefix("ref: refs/heads/") {
+        let branch = branch.trim();
+        return (!branch.is_empty()).then(|| branch.to_string());
+    }
+    if head.len() >= 7 && head.len() <= 40 && head.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Some(head.chars().take(8).collect());
+    }
+    None
+}
+
 fn write_translucency_config(app: &tauri::AppHandle, intensity: u8) -> Result<(), String> {
     let path = translucency_config_path(app)?;
     if let Some(parent) = path.parent() {
@@ -2926,7 +3034,14 @@ fn file_url_for_path(path: &Path) -> String {
 }
 
 fn normalize_path_string(path: PathBuf) -> String {
-    path.to_string_lossy().replace('\\', "/")
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    if let Some(rest) = normalized.strip_prefix("//?/UNC/") {
+        format!("//{rest}")
+    } else if let Some(rest) = normalized.strip_prefix("//?/") {
+        rest.to_string()
+    } else {
+        normalized
+    }
 }
 
 fn mime_for_path(path: &Path) -> &'static str {
@@ -3642,6 +3757,67 @@ mod tests {
     }
 
     #[test]
+    fn resolves_main_git_worktree() {
+        let temp = test_temp_dir("main-worktree");
+        let repo = temp.join("repo");
+        fs::create_dir_all(repo.join(".git")).expect("git dir");
+        fs::write(repo.join(".git").join("HEAD"), "ref: refs/heads/main\n").expect("head");
+        fs::create_dir_all(repo.join("src")).expect("src");
+
+        let info = resolve_worktree(&repo.join("src")).expect("worktree info");
+
+        assert_eq!(info.repo_root, normalize_path_string(repo.clone()));
+        assert_eq!(info.worktree_root, normalize_path_string(repo));
+        assert!(info.is_main_worktree);
+        assert_eq!(info.branch.as_deref(), Some("main"));
+        let _ = fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn resolves_linked_git_worktree() {
+        let temp = test_temp_dir("linked-worktree");
+        let repo = temp.join("repo");
+        let linked = temp.join("repo-feature");
+        let admin = repo.join(".git").join("worktrees").join("repo-feature");
+        fs::create_dir_all(repo.join(".git")).expect("main git dir");
+        fs::create_dir_all(&admin).expect("linked admin");
+        fs::create_dir_all(&linked).expect("linked checkout");
+        fs::write(repo.join(".git").join("HEAD"), "ref: refs/heads/main\n").expect("main head");
+        fs::write(admin.join("HEAD"), "ref: refs/heads/feature/rust\n").expect("linked head");
+        fs::write(admin.join("commondir"), "../..\n").expect("commondir");
+        fs::write(
+            linked.join(".git"),
+            format!("gitdir: {}\n", normalize_path_string(admin.clone())),
+        )
+        .expect("linked git file");
+
+        let info = resolve_worktree(&linked).expect("worktree info");
+
+        assert_eq!(info.repo_root, normalize_path_string(repo));
+        assert_eq!(info.worktree_root, normalize_path_string(linked));
+        assert!(!info.is_main_worktree);
+        assert_eq!(info.branch.as_deref(), Some("feature/rust"));
+        let _ = fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn reads_detached_head_short_sha() {
+        let temp = test_temp_dir("detached-worktree");
+        let repo = temp.join("repo");
+        fs::create_dir_all(repo.join(".git")).expect("git dir");
+        fs::write(
+            repo.join(".git").join("HEAD"),
+            "0123456789abcdef0123456789abcdef01234567\n",
+        )
+        .expect("head");
+
+        let info = resolve_worktree(&repo).expect("worktree info");
+
+        assert_eq!(info.branch.as_deref(), Some("01234567"));
+        let _ = fs::remove_dir_all(temp);
+    }
+
+    #[test]
     fn parses_tauri_release_asset_versions() {
         assert_eq!(
             release_asset_version("Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe").as_deref(),
@@ -3726,6 +3902,16 @@ mod tests {
             "Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.AppImage"
         );
     }
+}
+
+#[cfg(test)]
+fn test_temp_dir(name: &str) -> PathBuf {
+    let path = env::temp_dir().join(format!(
+        "iola-hermes-tauri-{name}-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    fs::create_dir_all(&path).expect("temp dir");
+    path
 }
 
 fn version_parts(value: &str) -> Vec<u64> {
@@ -4036,6 +4222,7 @@ fn main() {
             updates_get_branch,
             updates_set_branch,
             watch_preview_file,
+            worktrees,
             write_clipboard,
         ])
         .plugin(tauri_plugin_clipboard_manager::init())
