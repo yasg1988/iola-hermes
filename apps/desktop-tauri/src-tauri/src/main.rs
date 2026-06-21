@@ -232,6 +232,18 @@ struct RecentLogsResult {
     path: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateApplyOptions {
+    dirty_strategy: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateBranch {
+    branch: String,
+}
+
 struct ShellSpec {
     args: Vec<String>,
     command: String,
@@ -569,6 +581,68 @@ fn oauth_logout_connection_config(_remote_url: Option<String>) -> serde_json::Va
         "ok": true,
         "connected": false
     })
+}
+
+#[tauri::command]
+fn updates_get_branch(app: tauri::AppHandle) -> Result<UpdateBranch, String> {
+    Ok(UpdateBranch {
+        branch: read_update_branch(&app)?,
+    })
+}
+
+#[tauri::command]
+fn updates_set_branch(app: tauri::AppHandle, name: String) -> Result<UpdateBranch, String> {
+    let branch = if name.trim().is_empty() {
+        "main".to_string()
+    } else {
+        name.trim().to_string()
+    };
+    write_update_branch(&app, &branch)?;
+    Ok(UpdateBranch { branch })
+}
+
+#[tauri::command]
+fn updates_check(app: tauri::AppHandle) -> serde_json::Value {
+    match check_source_update(&app) {
+        Ok(value) => value,
+        Err(error) => serde_json::json!({
+            "supported": false,
+            "reason": "check-failed",
+            "message": error,
+            "fetchedAt": now_millis()
+        }),
+    }
+}
+
+#[tauri::command]
+fn updates_apply(app: tauri::AppHandle, opts: Option<UpdateApplyOptions>) -> serde_json::Value {
+    let strategy = opts
+        .and_then(|value| value.dirty_strategy)
+        .unwrap_or_else(|| "abort".to_string());
+    emit_update_progress(
+        &app,
+        "prepare",
+        "Проверяю исходный git-репозиторий",
+        Some(5),
+        None,
+    );
+    match apply_source_update(&app, &strategy) {
+        Ok(value) => value,
+        Err(error) => {
+            emit_update_progress(
+                &app,
+                "error",
+                "Обновление не выполнено",
+                Some(100),
+                Some(&error),
+            );
+            serde_json::json!({
+                "ok": false,
+                "error": "apply-failed",
+                "message": error
+            })
+        }
+    }
 }
 
 #[tauri::command]
@@ -1837,6 +1911,185 @@ fn read_recent_log_lines(dir: &Path, limit: usize) -> Vec<String> {
     lines
 }
 
+fn update_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| format!("Не удалось определить каталог настроек: {error}"))?;
+    Ok(dir.join("updates.json"))
+}
+
+fn read_update_branch(app: &tauri::AppHandle) -> Result<String, String> {
+    let path = update_config_path(app)?;
+    let raw = fs::read_to_string(path).unwrap_or_default();
+    let branch = serde_json::from_str::<serde_json::Value>(&raw)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("branch")
+                .and_then(|branch| branch.as_str())
+                .map(str::to_string)
+        })
+        .filter(|branch| !branch.trim().is_empty())
+        .unwrap_or_else(|| "main".to_string());
+    Ok(branch)
+}
+
+fn write_update_branch(app: &tauri::AppHandle, branch: &str) -> Result<(), String> {
+    let path = update_config_path(app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Не удалось создать каталог настроек: {error}"))?;
+    }
+    fs::write(
+        path,
+        serde_json::to_string_pretty(&serde_json::json!({ "branch": branch }))
+            .map_err(|error| format!("Не удалось сериализовать настройки обновлений: {error}"))?,
+    )
+    .map_err(|error| format!("Не удалось сохранить настройки обновлений: {error}"))
+}
+
+fn source_update_root() -> Option<PathBuf> {
+    let mut dir = env::current_dir().ok()?;
+    loop {
+        if dir.join(".git").exists() && dir.join("pyproject.toml").exists() {
+            return Some(dir);
+        }
+        if !dir.pop() {
+            return None;
+        }
+    }
+}
+
+fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .output()
+        .map_err(|error| format!("Не удалось запустить git: {error}"))?;
+    if !output.status.success() {
+        return Err(command_error(&format!("git {}", args.join(" ")), &output));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn git_dirty(root: &Path) -> Result<bool, String> {
+    Ok(!run_git(root, &["status", "--porcelain"])?.trim().is_empty())
+}
+
+fn git_current_sha(root: &Path) -> Result<String, String> {
+    run_git(root, &["rev-parse", "HEAD"])
+}
+
+fn git_current_branch(root: &Path) -> Result<String, String> {
+    run_git(root, &["branch", "--show-current"])
+}
+
+fn check_source_update(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let branch = read_update_branch(app)?;
+    let Some(root) = source_update_root() else {
+        return Ok(serde_json::json!({
+            "supported": false,
+            "branch": branch,
+            "reason": "not-git-source",
+            "message": "Tauri-приложение запущено не из git-репозитория исходников.",
+            "fetchedAt": now_millis()
+        }));
+    };
+    let current_branch = git_current_branch(&root).unwrap_or_default();
+    let current_sha = git_current_sha(&root)?;
+    let dirty = git_dirty(&root)?;
+    let fetch_result = run_git(&root, &["fetch", "origin", &branch]);
+    let target_ref = format!("origin/{branch}");
+    let target_sha = run_git(&root, &["rev-parse", &target_ref]).unwrap_or_default();
+    let behind = if target_sha.is_empty() {
+        0
+    } else {
+        run_git(
+            &root,
+            &["rev-list", "--count", &format!("HEAD..{target_ref}")],
+        )
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .unwrap_or(0)
+    };
+
+    Ok(serde_json::json!({
+        "supported": true,
+        "branch": branch,
+        "currentBranch": current_branch,
+        "currentSha": current_sha,
+        "targetSha": if target_sha.is_empty() { serde_json::Value::Null } else { serde_json::json!(target_sha) },
+        "behind": behind,
+        "dirty": dirty,
+        "error": fetch_result.err(),
+        "fetchedAt": now_millis()
+    }))
+}
+
+fn apply_source_update(
+    app: &tauri::AppHandle,
+    dirty_strategy: &str,
+) -> Result<serde_json::Value, String> {
+    let branch = read_update_branch(app)?;
+    let root = source_update_root()
+        .ok_or_else(|| "Tauri-приложение запущено не из git-репозитория исходников.".to_string())?;
+    if git_dirty(&root)? {
+        if dirty_strategy == "force" {
+            return Err(
+                "Force update для Tauri отключен: он может потерять локальные изменения."
+                    .to_string(),
+            );
+        }
+        return Err(
+            "В рабочем дереве есть локальные изменения. Сначала сохраните или закоммитьте их."
+                .to_string(),
+        );
+    }
+    emit_update_progress(app, "fetch", "Получаю обновления из GitHub", Some(25), None);
+    run_git(&root, &["fetch", "origin", &branch])?;
+    emit_update_progress(app, "pull", "Применяю fast-forward update", Some(65), None);
+    run_git(&root, &["pull", "--ff-only", "origin", &branch])?;
+    emit_update_progress(
+        app,
+        "restart",
+        "Обновление применено, перезапустите приложение",
+        Some(100),
+        None,
+    );
+    Ok(serde_json::json!({
+        "ok": true,
+        "branch": branch,
+        "message": "Обновление применено. Перезапустите Tauri-приложение."
+    }))
+}
+
+fn emit_update_progress(
+    app: &tauri::AppHandle,
+    stage: &str,
+    message: &str,
+    percent: Option<u8>,
+    error: Option<&str>,
+) {
+    let _ = app.emit(
+        "hermes:updates:progress",
+        serde_json::json!({
+            "stage": stage,
+            "message": message,
+            "percent": percent,
+            "error": error,
+            "at": now_millis()
+        }),
+    );
+}
+
+fn now_millis() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0)
+}
+
 #[cfg(windows)]
 fn windows_powershell_path() -> Option<PathBuf> {
     let windir = env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
@@ -1895,6 +2148,10 @@ fn main() {
             terminal_start,
             terminal_write,
             test_connection_config,
+            updates_apply,
+            updates_check,
+            updates_get_branch,
+            updates_set_branch,
             write_clipboard,
         ])
         .plugin(tauri_plugin_clipboard_manager::init())

@@ -203,11 +203,11 @@ export function installHermesDesktopBridge() {
       })
     },
     updates: {
-      apply: async () => ({ error: 'Обновления через Tauri пока не реализованы', ok: false }),
-      check: async () => ({ reason: 'tauri-experimental', supported: false }),
-      getBranch: async () => ({ branch: 'main' }),
-      onProgress: () => noopUnsubscribe,
-      setBranch: async (branch: string) => ({ branch })
+      apply: (opts?: unknown) => invoke('updates_apply', { opts }),
+      check: () => invoke('updates_check'),
+      getBranch: () => invoke('updates_get_branch'),
+      onProgress: (callback: (payload: unknown) => void) => subscribe('hermes:updates:progress', callback),
+      setBranch: (name: string) => invoke('updates_set_branch', { name })
     },
     watchPreviewFile: async (url: string) => ({ id: url, path: url }),
     worktrees: async () => ({}),
