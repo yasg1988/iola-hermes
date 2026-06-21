@@ -71,10 +71,14 @@ TypeScript-слой устанавливает совместимый `window.he
   pop-out для существующей сессии, spectator/watch mode, компактное окно новой
   сессии и фокус уже открытого окна вместо дубликата;
 - Windows/Linux release workflow для Tauri-сборок и публикация отдельных
-  `Hermes-RU-Iola-Tauri-*` assets в GitHub Releases.
+  `Hermes-RU-Iola-Tauri-*` assets в GitHub Releases;
+- Rust-тесты Tauri updater в release workflow перед упаковкой Windows/Linux
+  установщиков;
+- ручной smoke-test Windows NSIS: silent-install, запуск установленного
+  приложения и проверка живого процесса.
 
 ## Что дальше
 
 - доработать runtime translucency/titlebar tint, если выбранная платформа и
   Tauri API позволят применить эффект без нестабильных системных вызовов;
-- прогнать ручной сценарий запуска установленного приложения.
+- прогнать ручной сценарий установки и запуска Linux-пакетов на Linux-хосте.
