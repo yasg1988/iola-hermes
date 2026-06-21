@@ -32,6 +32,17 @@ interface BootProgress {
   timestamp: number
 }
 
+interface HermesTitleBarTheme {
+  background: string
+  foreground: string
+}
+
+interface HermesWindowState {
+  isFullscreen: boolean
+  nativeOverlayWidth: number
+  windowButtonPosition: null | { x: number; y: number }
+}
+
 interface OauthLoginResult {
   baseUrl: string
   connected: boolean
@@ -172,7 +183,8 @@ export function installHermesDesktopBridge() {
     onOpenUpdatesRequested: () => noopUnsubscribe,
     onPowerResume: () => noopUnsubscribe,
     onPreviewFileChanged: () => noopUnsubscribe,
-    onWindowStateChanged: () => noopUnsubscribe,
+    onWindowStateChanged: (callback: (payload: HermesWindowState) => void) =>
+      subscribe('hermes:window-state-changed', callback),
     openExternal: (url: string) => invoke('open_external', { url }),
     openNewSessionWindow: async () => ok,
     openSessionWindow: async () => ok,
@@ -196,10 +208,10 @@ export function installHermesDesktopBridge() {
       invoke('save_image_buffer', { data: bytesForInvoke(data), ext }),
     saveImageFromUrl: (url: string) => invoke('save_image_from_url', { url }),
     selectPaths: (options?: unknown) => invoke('select_paths', { options }),
-    setNativeTheme: () => undefined,
+    setNativeTheme: (mode: 'dark' | 'light' | 'system') => void invoke('set_native_theme', { mode }),
     setPreviewShortcutActive: () => undefined,
-    setTitleBarTheme: () => undefined,
-    setTranslucency: () => undefined,
+    setTitleBarTheme: (payload: HermesTitleBarTheme) => void invoke('set_title_bar_theme', { payload }),
+    setTranslucency: (payload: { intensity: number }) => void invoke('set_translucency', { payload }),
     settings: {
       getDefaultProjectDir: async () => ({ defaultLabel: '', dir: null, resolvedCwd: '' }),
       pickDefaultProjectDir: async () => ({ canceled: true, dir: null }),

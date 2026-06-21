@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child as ProcessChild, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, Theme, WebviewWindow, WindowEvent};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 
@@ -170,6 +170,28 @@ struct BootProgress {
 struct BackendExit {
     code: Option<i32>,
     signal: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HermesWindowState {
+    is_fullscreen: bool,
+    native_overlay_width: u16,
+    window_button_position: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HermesTitleBarTheme {
+    #[allow(dead_code)]
+    background: String,
+    #[allow(dead_code)]
+    foreground: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct TranslucencyInput {
+    intensity: u8,
 }
 
 #[derive(Debug, Serialize)]
@@ -476,6 +498,28 @@ fn test_connection_config(
             .and_then(|value| value.as_str())
             .map(str::to_string),
     })
+}
+
+#[tauri::command]
+fn set_native_theme(app: tauri::AppHandle, mode: String) -> Result<bool, String> {
+    let theme = match mode.as_str() {
+        "dark" => Some(Theme::Dark),
+        "light" => Some(Theme::Light),
+        "system" => None,
+        other => return Err(format!("Неизвестный режим темы: {other}")),
+    };
+    app.set_theme(theme);
+    Ok(true)
+}
+
+#[tauri::command]
+fn set_title_bar_theme(_payload: HermesTitleBarTheme) -> bool {
+    true
+}
+
+#[tauri::command]
+fn set_translucency(payload: TranslucencyInput) -> bool {
+    payload.intensity <= 100
 }
 
 #[tauri::command]
@@ -2777,6 +2821,18 @@ fn windows_powershell_path() -> Option<PathBuf> {
     None
 }
 
+fn window_state_payload(window: &WebviewWindow) -> HermesWindowState {
+    HermesWindowState {
+        is_fullscreen: window.is_fullscreen().unwrap_or(false),
+        native_overlay_width: 138,
+        window_button_position: None,
+    }
+}
+
+fn emit_window_state(window: &WebviewWindow) {
+    let _ = window.emit("hermes:window-state-changed", window_state_payload(window));
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(AppState {
@@ -2784,6 +2840,20 @@ fn main() {
             boot_progress: Arc::new(Mutex::new(default_boot_progress())),
             oauth_sessions: Arc::new(Mutex::new(None)),
             terminals: Arc::new(Mutex::new(HashMap::new())),
+        })
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                emit_window_state(&window);
+                let event_window = window.clone();
+                window.on_window_event(move |event| match event {
+                    WindowEvent::Focused(_)
+                    | WindowEvent::Resized(_)
+                    | WindowEvent::ScaleFactorChanged { .. }
+                    | WindowEvent::ThemeChanged(_) => emit_window_state(&event_window),
+                    _ => {}
+                });
+            }
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             apply_connection_config,
@@ -2811,6 +2881,9 @@ fn main() {
             save_image_from_url,
             save_connection_config,
             select_paths,
+            set_native_theme,
+            set_title_bar_theme,
+            set_translucency,
             start_backend,
             terminal_dispose,
             terminal_resize,

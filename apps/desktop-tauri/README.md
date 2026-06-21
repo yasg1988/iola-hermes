@@ -45,11 +45,15 @@ TypeScript-слой устанавливает совместимый `window.he
   и получение свежего `ws-ticket` для WebSocket-подключения;
 - события запуска локального backend через `onBootProgress`;
 - событие завершения локального backend через `onBackendExit`;
+- синхронизация native theme и события состояния окна через
+  `setNativeTheme`/`onWindowStateChanged`;
 - Windows/Linux release workflow для Tauri-сборок.
 
 ## Что дальше
 
 - заменить оставшиеся заглушки на настоящие Tauri-команды для packaged
-  auto-update и расширенных desktop-событий;
+  auto-update, multi-window, preview file watch и redirect/deep-link событий;
+- доработать runtime translucency/titlebar tint, если выбранная платформа и
+  Tauri API позволят применить эффект без нестабильных системных вызовов;
 - перенести redirect OAuth login flow для remote gateway;
 - прогнать ручной сценарий запуска установленного приложения.
