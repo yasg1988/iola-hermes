@@ -13,8 +13,10 @@ use std::path::{Path, PathBuf};
 use std::process::{Child as ProcessChild, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tauri::utils::config::Color;
 use tauri::{
-    Emitter, Manager, Theme, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    Emitter, Manager, Theme, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
 };
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -211,14 +213,17 @@ struct HermesWindowState {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct HermesTitleBarTheme {
-    #[allow(dead_code)]
     background: String,
-    #[allow(dead_code)]
     foreground: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct TranslucencyInput {
+    intensity: i32,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+struct TranslucencyConfig {
     intensity: u8,
 }
 
@@ -577,13 +582,25 @@ fn set_native_theme(app: tauri::AppHandle, mode: String) -> Result<bool, String>
 }
 
 #[tauri::command]
-fn set_title_bar_theme(_payload: HermesTitleBarTheme) -> bool {
-    true
+fn set_title_bar_theme(
+    app: tauri::AppHandle,
+    payload: HermesTitleBarTheme,
+) -> Result<bool, String> {
+    let background = parse_hex_color(&payload.background, 255)?;
+    // В Tauri пока нет стабильного API для цвета текста заголовка, но мост
+    // все равно проверяет данные в формате, совместимом с Electron.
+    parse_hex_color(&payload.foreground, 255)?;
+    for window in app.webview_windows().values() {
+        apply_title_bar_theme(window, background)?;
+    }
+    Ok(true)
 }
 
 #[tauri::command]
-fn set_translucency(payload: TranslucencyInput) -> bool {
-    payload.intensity <= 100
+fn set_translucency(app: tauri::AppHandle, payload: TranslucencyInput) -> Result<bool, String> {
+    let intensity = clamp_translucency(payload.intensity);
+    write_translucency_config(&app, intensity)?;
+    Ok(true)
 }
 
 #[tauri::command]
@@ -1963,6 +1980,51 @@ fn connection_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("connection.json"))
 }
 
+fn translucency_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| format!("Не удалось определить каталог настроек: {error}"))?;
+    Ok(dir.join("translucency.json"))
+}
+
+fn clamp_translucency(value: i32) -> u8 {
+    value.clamp(0, 100) as u8
+}
+
+fn parse_hex_color(value: &str, alpha: u8) -> Result<Color, String> {
+    let raw = value.trim().strip_prefix('#').unwrap_or(value.trim());
+    if raw.len() != 6 || !raw.as_bytes().iter().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(format!("Некорректный цвет titlebar: {value}"));
+    }
+    let red = u8::from_str_radix(&raw[0..2], 16)
+        .map_err(|_| format!("Некорректный цвет titlebar: {value}"))?;
+    let green = u8::from_str_radix(&raw[2..4], 16)
+        .map_err(|_| format!("Некорректный цвет titlebar: {value}"))?;
+    let blue = u8::from_str_radix(&raw[4..6], 16)
+        .map_err(|_| format!("Некорректный цвет titlebar: {value}"))?;
+    Ok(Color(red, green, blue, alpha))
+}
+
+fn apply_title_bar_theme(window: &WebviewWindow, background: Color) -> Result<(), String> {
+    let _ = window.set_title_bar_style(TitleBarStyle::Transparent);
+    window
+        .set_background_color(Some(background))
+        .map_err(|error| format!("Не удалось применить цвет окна: {error}"))
+}
+
+fn write_translucency_config(app: &tauri::AppHandle, intensity: u8) -> Result<(), String> {
+    let path = translucency_config_path(app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Не удалось создать каталог настроек: {error}"))?;
+    }
+    let raw = serde_json::to_string_pretty(&TranslucencyConfig { intensity })
+        .map_err(|error| format!("Не удалось сериализовать настройки прозрачности: {error}"))?;
+    fs::write(path, raw)
+        .map_err(|error| format!("Не удалось сохранить настройки прозрачности: {error}"))
+}
+
 fn default_connection_config() -> DesktopConnectionConfigFile {
     DesktopConnectionConfigFile {
         mode: "local".to_string(),
@@ -2215,6 +2277,7 @@ fn open_or_focus_secondary_window(
         .inner_size(420.0, 620.0)
         .min_inner_size(420.0, 620.0)
         .resizable(true)
+        .transparent(true)
         .build()
         .map_err(|error| format!("Не удалось открыть окно сессии: {error}"))?;
     install_window_state_events(&window);
@@ -3356,6 +3419,30 @@ mod tests {
             name: name.to_string(),
             size: None,
         }
+    }
+
+    #[test]
+    fn clamps_translucency_to_supported_range() {
+        assert_eq!(clamp_translucency(-20), 0);
+        assert_eq!(clamp_translucency(55), 55);
+        assert_eq!(clamp_translucency(120), 100);
+    }
+
+    #[test]
+    fn parses_six_digit_hex_colors() {
+        let color = parse_hex_color("#112233", 200).expect("valid color");
+
+        assert_eq!(color.0, 0x11);
+        assert_eq!(color.1, 0x22);
+        assert_eq!(color.2, 0x33);
+        assert_eq!(color.3, 200);
+    }
+
+    #[test]
+    fn rejects_invalid_hex_colors() {
+        assert!(parse_hex_color("#12345", 255).is_err());
+        assert!(parse_hex_color("#12xx45", 255).is_err());
+        assert!(parse_hex_color("11223344", 255).is_err());
     }
 
     #[test]
