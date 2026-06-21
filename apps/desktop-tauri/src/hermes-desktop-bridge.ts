@@ -33,6 +33,46 @@ interface BootProgress {
   timestamp: number
 }
 
+interface BootstrapStageDescriptor {
+  category?: string
+  name: string
+  needs_user_input?: boolean
+  title?: string
+}
+
+interface BootstrapStageResult {
+  durationMs: null | number
+  error: null | string
+  json: null | { ok: boolean; reason?: null | string; skipped?: boolean; stage: string }
+  startedAt: null | number
+  state: 'failed' | 'pending' | 'running' | 'skipped' | 'succeeded'
+}
+
+interface BootstrapState {
+  active: boolean
+  completedAt: null | number
+  error: null | string
+  log: Array<{ line: string; stage: null | string; stream?: 'stderr' | 'stdout'; ts: number }>
+  manifest: null | { protocolVersion: null | number; stages: BootstrapStageDescriptor[]; type: 'manifest' }
+  stages: Record<string, BootstrapStageResult>
+  startedAt: null | number
+  unsupportedPlatform: null
+}
+
+type BootstrapEvent =
+  | { protocolVersion: null | number; stages: BootstrapStageDescriptor[]; type: 'manifest' }
+  | {
+      durationMs?: number
+      error?: null | string
+      json?: BootstrapStageResult['json']
+      name: string
+      state: BootstrapStageResult['state']
+      type: 'stage'
+    }
+  | { line: string; stage?: null | string; stream?: 'stderr' | 'stdout'; type: 'log' }
+  | { marker: Record<string, unknown>; type: 'complete' }
+  | { error: string; stage?: null | string; type: 'failed' }
+
 interface HermesTitleBarTheme {
   background: string
   foreground: string
@@ -97,15 +137,16 @@ let notificationActionListenerReady = false
 let previewShortcutActive = false
 let previewShortcutListenerReady = false
 
-const emptyBootState = {
-  active: false,
-  completedAt: Date.now(),
-  error: null,
-  log: [],
-  manifest: null,
-  stages: {},
-  startedAt: null,
-  unsupportedPlatform: null
+const TAURI_BOOTSTRAP_STAGE: BootstrapStageDescriptor = {
+  category: 'tauri',
+  name: 'tauri-backend',
+  title: 'Tauri backend'
+}
+
+const tauriBootstrapManifest = {
+  protocolVersion: 1,
+  stages: [TAURI_BOOTSTRAP_STAGE],
+  type: 'manifest' as const
 }
 
 const localConnectionConfig = {
@@ -225,6 +266,94 @@ function subscribeLocal<T>(event: string, callback: (payload: T) => void): Unsub
 
 function emitLocal<T>(event: string, payload: T) {
   localEvents.dispatchEvent(new CustomEvent(event, { detail: payload }))
+}
+
+function bootstrapStageFromProgress(progress: BootProgress): BootstrapStageResult {
+  const failed = Boolean(progress.error)
+  const succeeded = !progress.running && !failed && progress.progress >= 100
+
+  return {
+    durationMs: null,
+    error: progress.error,
+    json: progress.error
+      ? { ok: false, reason: progress.error, stage: TAURI_BOOTSTRAP_STAGE.name }
+      : { ok: true, stage: TAURI_BOOTSTRAP_STAGE.name },
+    startedAt: progress.running ? progress.timestamp : null,
+    state: failed ? 'failed' : succeeded ? 'succeeded' : progress.running ? 'running' : 'pending'
+  }
+}
+
+function bootstrapStateFromProgress(progress: BootProgress): BootstrapState {
+  const stage = bootstrapStageFromProgress(progress)
+  const completed = !progress.running && !progress.error
+
+  return {
+    active: progress.running,
+    completedAt: completed ? progress.timestamp : null,
+    error: progress.error,
+    log: progress.message
+      ? [
+          {
+            line: progress.message,
+            stage: progress.phase || TAURI_BOOTSTRAP_STAGE.name,
+            stream: progress.error ? 'stderr' : 'stdout',
+            ts: progress.timestamp
+          }
+        ]
+      : [],
+    manifest: tauriBootstrapManifest,
+    stages: {
+      [TAURI_BOOTSTRAP_STAGE.name]: stage
+    },
+    startedAt: progress.running ? progress.timestamp : null,
+    unsupportedPlatform: null
+  }
+}
+
+function bootstrapEventsFromProgress(progress: BootProgress): BootstrapEvent[] {
+  const stage = bootstrapStageFromProgress(progress)
+  const events: BootstrapEvent[] = [
+    {
+      error: stage.error,
+      json: stage.json,
+      name: TAURI_BOOTSTRAP_STAGE.name,
+      state: stage.state,
+      type: 'stage'
+    }
+  ]
+
+  if (progress.message) {
+    events.push({
+      line: progress.message,
+      stage: progress.phase || TAURI_BOOTSTRAP_STAGE.name,
+      stream: progress.error ? 'stderr' : 'stdout',
+      type: 'log'
+    })
+  }
+
+  if (progress.error) {
+    events.push({ error: progress.error, stage: progress.phase || TAURI_BOOTSTRAP_STAGE.name, type: 'failed' })
+  } else if (!progress.running && progress.progress >= 100) {
+    events.push({ marker: { runtime: 'tauri', stage: TAURI_BOOTSTRAP_STAGE.name }, type: 'complete' })
+  }
+
+  return events
+}
+
+async function getBootstrapState(): Promise<BootstrapState> {
+  const progress = await invoke<BootProgress>('get_boot_progress')
+
+  return bootstrapStateFromProgress(progress)
+}
+
+function onBootstrapEvent(callback: (payload: BootstrapEvent) => void): Unsubscribe {
+  callback(tauriBootstrapManifest)
+
+  return subscribe<BootProgress>('hermes:boot-progress', progress => {
+    for (const event of bootstrapEventsFromProgress(progress)) {
+      callback(event)
+    }
+  })
 }
 
 function bytesForInvoke(data: ArrayBuffer | Uint8Array): number[] {
@@ -360,7 +489,7 @@ export function installHermesDesktopBridge() {
     cancelBootstrap: () => invoke('cancel_bootstrap'),
     fetchLinkTitle: (url: string) => invoke('fetch_link_title', { url }),
     getBootProgress: () => invoke('get_boot_progress'),
-    getBootstrapState: async () => emptyBootState,
+    getBootstrapState,
     getConnection: (profile?: null | string) => invoke('get_connection', { profile }),
     getConnectionConfig: (profile?: null | string) => invoke('get_connection_config', { profile }),
     getGatewayWsUrl: (profile?: null | string) => invoke('get_gateway_ws_url', { profile }),
@@ -375,7 +504,7 @@ export function installHermesDesktopBridge() {
     oauthLogoutConnectionConfig: (remoteUrl?: string) => invoke('oauth_logout_connection_config', { remoteUrl }),
     onBackendExit: (callback: (payload: BackendExit) => void) => subscribe('hermes:backend-exit', callback),
     onBootProgress: (callback: (payload: BootProgress) => void) => subscribe('hermes:boot-progress', callback),
-    onBootstrapEvent: () => noopUnsubscribe,
+    onBootstrapEvent,
     onClosePreviewRequested,
     onDeepLink: (callback: (payload: DeepLinkPayload) => void) => subscribe('hermes:deep-link', callback),
     onFocusSession: (callback: (sessionId: string) => void) => subscribeLocal('hermes:focus-session', callback),

@@ -61,6 +61,8 @@ TypeScript-слой устанавливает совместимый `window.he
   `/api/auth/me`, локальное хранение session cookies и получение свежего
   `ws-ticket` для WebSocket-подключения;
 - события запуска локального backend через `onBootProgress`;
+- совместимый bootstrap snapshot/event stream для install/boot overlay на базе
+  Tauri `BootProgress`;
 - событие завершения локального backend через `onBackendExit`;
 - сброс и повторная попытка запуска backend из boot-failure overlay через
   `resetBootstrap`/`repairBootstrap`;
