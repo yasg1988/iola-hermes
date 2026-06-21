@@ -1,7 +1,7 @@
 {
   "id": "iola-hermes",
   "name": "Hermes RU Iola",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "description": "Русскоязычный открытый ИИ-агент с ACP-интеграцией, постоянной памятью, навыками и расширенной поддержкой инструментов.",
   "repository": "https://github.com/yasg1988/iola-hermes",
   "website": "https://github.com/yasg1988/iola-hermes#readme",
@@ -9,7 +9,7 @@
   "license": "MIT",
   "distribution": {
     "uvx": {
-      "package": "iola-hermes[acp]==0.17.1",
+      "package": "iola-hermes[acp]==0.17.2",
       "args": ["hermes-acp"]
     }
   }
