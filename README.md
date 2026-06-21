@@ -29,10 +29,10 @@ npm install -g iola-hermes
 iola-hermes
 ```
 
-npm-пакет устанавливает Python backend из этого репозитория:
+npm-пакет устанавливает Python backend из PyPI той же версии:
 
 ```text
-https://github.com/yasg1988/iola-hermes
+iola-hermes
 ```
 
 Команда `iola-hermes` запускает Hermes CLI через Python-модуль
@@ -44,12 +44,12 @@ https://github.com/yasg1988/iola-hermes
 ```bash
 git clone https://github.com/yasg1988/iola-hermes.git
 cd iola-hermes
-py -3.13 -m pip install -e . --no-deps
+py -3.14 -m pip install -e . --no-deps
 iola-hermes
 ```
 
-Проект требует Python `>=3.11,<3.14`. На Windows рекомендуется Python 3.13,
-если Python 3.14 уже установлен как версия по умолчанию.
+Проект требует Python `>=3.11,<3.15`. На Windows поддерживаются Python
+3.11, 3.12, 3.13 и 3.14.
 
 Для нативной установки на Windows используйте PowerShell-скрипт
 `scripts/install.ps1`.
