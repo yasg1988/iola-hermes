@@ -36,6 +36,9 @@ TypeScript-слой устанавливает совместимый `window.he
 - запрос доступа к микрофону через WebView media API;
 - проверка и применение обновлений для source/git-запуска через `git fetch` и
   `git pull --ff-only`;
+- проверка обновлений packaged-приложения через GitHub Releases, выбор
+  подходящего Tauri installer/AppImage, скачивание и передача запуска
+  установщику;
 - сводка удаления и запуск штатного `hermes uninstall` из Tauri;
 - TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - основной React renderer из `apps/desktop`;
@@ -64,8 +67,6 @@ TypeScript-слой устанавливает совместимый `window.he
 
 ## Что дальше
 
-- заменить оставшиеся заглушки на настоящие Tauri-команды для packaged
-  auto-update;
 - доработать runtime translucency/titlebar tint, если выбранная платформа и
   Tauri API позволят применить эффект без нестабильных системных вызовов;
 - прогнать ручной сценарий запуска установленного приложения.

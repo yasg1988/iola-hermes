@@ -337,6 +337,29 @@ struct UpdateBranch {
     branch: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GitHubReleaseAsset {
+    browser_download_url: String,
+    name: String,
+    size: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubRelease {
+    assets: Vec<GitHubReleaseAsset>,
+    html_url: String,
+    name: Option<String>,
+    tag_name: String,
+}
+
+#[derive(Debug)]
+struct PackagedUpdateAsset {
+    download_url: String,
+    name: String,
+    size: Option<u64>,
+    version: String,
+}
+
 struct ShellSpec {
     args: Vec<String>,
     command: String,
@@ -845,7 +868,7 @@ fn updates_set_branch(app: tauri::AppHandle, name: String) -> Result<UpdateBranc
 
 #[tauri::command]
 fn updates_check(app: tauri::AppHandle) -> serde_json::Value {
-    match check_source_update(&app) {
+    match check_desktop_update(&app) {
         Ok(value) => value,
         Err(error) => serde_json::json!({
             "supported": false,
@@ -861,14 +884,8 @@ fn updates_apply(app: tauri::AppHandle, opts: Option<UpdateApplyOptions>) -> ser
     let strategy = opts
         .and_then(|value| value.dirty_strategy)
         .unwrap_or_else(|| "abort".to_string());
-    emit_update_progress(
-        &app,
-        "prepare",
-        "Проверяю исходный git-репозиторий",
-        Some(5),
-        None,
-    );
-    match apply_source_update(&app, &strategy) {
+    emit_update_progress(&app, "prepare", "Проверяю канал обновлений", Some(5), None);
+    match apply_desktop_update(&app, &strategy) {
         Ok(value) => value,
         Err(error) => {
             emit_update_progress(
@@ -3105,6 +3122,290 @@ fn check_source_update(app: &tauri::AppHandle) -> Result<serde_json::Value, Stri
         "error": fetch_result.err(),
         "fetchedAt": now_millis()
     }))
+}
+
+fn check_desktop_update(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
+    if source_update_root().is_some() {
+        return check_source_update(app);
+    }
+    check_packaged_update()
+}
+
+fn apply_desktop_update(
+    app: &tauri::AppHandle,
+    dirty_strategy: &str,
+) -> Result<serde_json::Value, String> {
+    if source_update_root().is_some() {
+        return apply_source_update(app, dirty_strategy);
+    }
+    apply_packaged_update(app)
+}
+
+fn github_client() -> Result<reqwest::blocking::Client, String> {
+    reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(45))
+        .user_agent("Hermes-RU-Iola-Tauri-Updater")
+        .build()
+        .map_err(|error| format!("Не удалось создать GitHub HTTP client: {error}"))
+}
+
+fn fetch_latest_github_release() -> Result<GitHubRelease, String> {
+    let response = github_client()?
+        .get("https://api.github.com/repos/yasg1988/iola-hermes/releases/latest")
+        .send()
+        .map_err(|error| format!("Не удалось получить GitHub Release: {error}"))?;
+    let status = response.status();
+    let text = response
+        .text()
+        .map_err(|error| format!("Не удалось прочитать GitHub Release: {error}"))?;
+    if !status.is_success() {
+        return Err(format!("GitHub Releases вернул {status}: {text}"));
+    }
+    serde_json::from_str(&text).map_err(|error| format!("GitHub Release вернул не JSON: {error}"))
+}
+
+fn check_packaged_update() -> Result<serde_json::Value, String> {
+    let release = fetch_latest_github_release()?;
+    let current_version = env!("CARGO_PKG_VERSION");
+    let asset = select_packaged_update_asset(&release.assets);
+    let latest_version = asset
+        .as_ref()
+        .map(|asset| asset.version.clone())
+        .or_else(|| release_name_version(&release.name.clone().unwrap_or_default()))
+        .unwrap_or_else(|| release.tag_name.trim_start_matches('v').to_string());
+    let behind = if version_is_newer(&latest_version, current_version) {
+        1
+    } else {
+        0
+    };
+
+    Ok(serde_json::json!({
+        "supported": asset.is_some(),
+        "channel": "github-release",
+        "currentSha": current_version,
+        "targetSha": if behind > 0 { serde_json::json!(release.tag_name) } else { serde_json::Value::Null },
+        "targetVersion": latest_version,
+        "behind": behind,
+        "releaseName": release.name,
+        "releaseUrl": release.html_url,
+        "assetName": asset.as_ref().map(|asset| asset.name.clone()),
+        "assetSize": asset.as_ref().and_then(|asset| asset.size),
+        "reason": if asset.is_some() { serde_json::Value::Null } else { serde_json::json!("no-compatible-asset") },
+        "message": if asset.is_some() {
+            serde_json::Value::Null
+        } else {
+            serde_json::json!("В последнем GitHub Release нет подходящего Tauri installer для этой платформы.")
+        },
+        "fetchedAt": now_millis()
+    }))
+}
+
+fn apply_packaged_update(app: &tauri::AppHandle) -> Result<serde_json::Value, String> {
+    emit_update_progress(
+        app,
+        "fetch",
+        "Получаю сведения о последнем GitHub Release",
+        Some(15),
+        None,
+    );
+    let release = fetch_latest_github_release()?;
+    let current_version = env!("CARGO_PKG_VERSION");
+    let asset = select_packaged_update_asset(&release.assets).ok_or_else(|| {
+        "В последнем GitHub Release нет подходящего installer для этой платформы.".to_string()
+    })?;
+    if !version_is_newer(&asset.version, current_version) {
+        return Ok(serde_json::json!({
+            "ok": true,
+            "message": "Установленная Tauri-версия уже актуальна.",
+            "currentVersion": current_version,
+            "targetVersion": asset.version
+        }));
+    }
+
+    emit_update_progress(
+        app,
+        "fetch",
+        &format!("Скачиваю {}", asset.name),
+        Some(35),
+        None,
+    );
+    let path = download_update_asset(&asset)?;
+    emit_update_progress(
+        app,
+        "restart",
+        "Запускаю установщик обновления",
+        Some(90),
+        None,
+    );
+    launch_update_asset(&path)?;
+    emit_update_progress(
+        app,
+        "restart",
+        "Установщик обновления запущен. Hermes RU Iola будет закрыт.",
+        Some(100),
+        None,
+    );
+    app.exit(0);
+
+    Ok(serde_json::json!({
+        "ok": true,
+        "handedOff": true,
+        "updater": normalize_path_string(path),
+        "targetVersion": asset.version,
+        "message": "Установщик обновления запущен."
+    }))
+}
+
+fn select_packaged_update_asset(assets: &[GitHubReleaseAsset]) -> Option<PackagedUpdateAsset> {
+    let candidates = assets
+        .iter()
+        .filter_map(|asset| {
+            let name = asset.name.as_str();
+            if !platform_asset_matches(name) {
+                return None;
+            }
+            let version = release_asset_version(name)?;
+            Some(PackagedUpdateAsset {
+                download_url: asset.browser_download_url.clone(),
+                name: asset.name.clone(),
+                size: asset.size,
+                version,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    candidates
+        .into_iter()
+        .max_by(|a, b| compare_versions(&a.version, &b.version))
+}
+
+fn platform_asset_matches(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    if cfg!(windows) {
+        lower.ends_with(".exe") && !lower.ends_with(".exe.blockmap") && lower.contains("win")
+    } else if cfg!(target_os = "linux") {
+        lower.ends_with(".appimage") && lower.contains("linux")
+    } else {
+        false
+    }
+}
+
+fn release_asset_version(name: &str) -> Option<String> {
+    let mut current = String::new();
+    for ch in name.chars() {
+        if ch.is_ascii_digit() || ch == '.' {
+            current.push(ch);
+            continue;
+        }
+        if looks_like_version(&current) {
+            return Some(current.trim_matches('.').to_string());
+        }
+        current.clear();
+    }
+    if looks_like_version(&current) {
+        Some(current.trim_matches('.').to_string())
+    } else {
+        None
+    }
+}
+
+fn release_name_version(name: &str) -> Option<String> {
+    name.split_whitespace()
+        .map(|part| part.trim_start_matches('v'))
+        .find(|part| looks_like_version(part))
+        .map(|part| part.trim_matches('.').to_string())
+}
+
+fn looks_like_version(value: &str) -> bool {
+    let parts = value.trim_matches('.').split('.').collect::<Vec<_>>();
+    parts.len() >= 3
+        && parts
+            .iter()
+            .all(|part| !part.is_empty() && part.chars().all(|ch| ch.is_ascii_digit()))
+}
+
+fn version_is_newer(candidate: &str, current: &str) -> bool {
+    compare_versions(candidate, current).is_gt()
+}
+
+fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
+    let a_parts = version_parts(a);
+    let b_parts = version_parts(b);
+    let len = a_parts.len().max(b_parts.len());
+    for index in 0..len {
+        let a_value = *a_parts.get(index).unwrap_or(&0);
+        let b_value = *b_parts.get(index).unwrap_or(&0);
+        match a_value.cmp(&b_value) {
+            std::cmp::Ordering::Equal => continue,
+            ordering => return ordering,
+        }
+    }
+    std::cmp::Ordering::Equal
+}
+
+fn version_parts(value: &str) -> Vec<u64> {
+    value
+        .trim_start_matches('v')
+        .split(|ch| ch == '.' || ch == '-' || ch == '+')
+        .filter_map(|part| part.parse::<u64>().ok())
+        .collect()
+}
+
+fn download_update_asset(asset: &PackagedUpdateAsset) -> Result<PathBuf, String> {
+    let response = github_client()?
+        .get(&asset.download_url)
+        .send()
+        .map_err(|error| format!("Не удалось скачать {}: {error}", asset.name))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("GitHub asset {} вернул {status}", asset.name));
+    }
+    let bytes = response
+        .bytes()
+        .map_err(|error| format!("Не удалось прочитать {}: {error}", asset.name))?;
+    let dir = env::temp_dir().join("hermes-ru-iola-updates");
+    fs::create_dir_all(&dir)
+        .map_err(|error| format!("Не удалось создать каталог обновлений: {error}"))?;
+    let path = dir.join(sanitize_update_asset_name(&asset.name));
+    fs::write(&path, &bytes)
+        .map_err(|error| format!("Не удалось сохранить installer обновления: {error}"))?;
+    make_update_asset_executable(&path)?;
+    Ok(path)
+}
+
+fn sanitize_update_asset_name(name: &str) -> String {
+    name.chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_') {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect()
+}
+
+#[cfg(unix)]
+fn make_update_asset_executable(path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut permissions = fs::metadata(path)
+        .map_err(|error| format!("Не удалось прочитать permissions installer: {error}"))?
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions)
+        .map_err(|error| format!("Не удалось сделать installer исполняемым: {error}"))
+}
+
+#[cfg(not(unix))]
+fn make_update_asset_executable(_path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+fn launch_update_asset(path: &Path) -> Result<(), String> {
+    Command::new(path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Не удалось запустить installer обновления: {error}"))
 }
 
 fn apply_source_update(
