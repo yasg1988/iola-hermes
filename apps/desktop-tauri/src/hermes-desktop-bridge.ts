@@ -493,7 +493,6 @@ export function installHermesDesktopBridge() {
     getConnection: (profile?: null | string) => invoke('get_connection', { profile }),
     getConnectionConfig: (profile?: null | string) => invoke('get_connection_config', { profile }),
     getGatewayWsUrl: (profile?: null | string) => invoke('get_gateway_ws_url', { profile }),
-    getPathForFile: () => '',
     getRecentLogs: () => invoke('get_recent_logs'),
     getVersion: () => invoke('get_version'),
     gitRoot: (path: string) => invoke('git_root', { path }),
