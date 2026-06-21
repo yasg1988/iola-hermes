@@ -138,13 +138,19 @@ fn start_backend(
 }
 
 #[tauri::command]
-fn get_connection(state: tauri::State<'_, AppState>) -> Result<HermesConnection, String> {
+fn get_connection(
+    state: tauri::State<'_, AppState>,
+    _profile: Option<String>,
+) -> Result<HermesConnection, String> {
     let backend = ensure_backend(&state, None)?;
     Ok(backend.connection())
 }
 
 #[tauri::command]
-fn get_gateway_ws_url(state: tauri::State<'_, AppState>) -> Result<String, String> {
+fn get_gateway_ws_url(
+    state: tauri::State<'_, AppState>,
+    _profile: Option<String>,
+) -> Result<String, String> {
     let backend = ensure_backend(&state, None)?;
     Ok(backend.ws_url())
 }
@@ -336,11 +342,11 @@ fn launch_backend(requested_port: Option<u16>) -> Result<BackendRuntime, String>
         child.creation_flags(0x08000000);
     }
 
-    let child = child
+    let mut child = child
         .spawn()
         .map_err(|error| format!("Не удалось запустить Hermes dashboard: {error}"))?;
 
-    wait_for_status(port, &token, Duration::from_secs(45))?;
+    wait_for_backend_ready(&mut child, port, &token, Duration::from_secs(45))?;
 
     Ok(BackendRuntime {
         child,
@@ -357,7 +363,12 @@ fn find_free_port() -> u16 {
         .unwrap_or(9119)
 }
 
-fn wait_for_status(port: u16, token: &str, timeout: Duration) -> Result<(), String> {
+fn wait_for_backend_ready(
+    child: &mut Child,
+    port: u16,
+    token: &str,
+    timeout: Duration,
+) -> Result<(), String> {
     let deadline = Instant::now() + timeout;
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(2))
@@ -367,6 +378,13 @@ fn wait_for_status(port: u16, token: &str, timeout: Duration) -> Result<(), Stri
     let mut last_error = String::new();
 
     while Instant::now() < deadline {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| format!("Не удалось проверить Hermes dashboard: {error}"))?
+        {
+            return Err(format!("Hermes dashboard завершился при запуске: {status}"));
+        }
+
         match client
             .get(&url)
             .header("X-Hermes-Session-Token", token)
