@@ -41,8 +41,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - основной React renderer из `apps/desktop`;
 - настройки подключения gateway: local mode и remote token gateway с
   сохранением, применением, проверкой и probe `/api/status`;
-- password gateway: вход по логину/паролю, cookie-сессия в памяти процесса и
-  получение свежего `ws-ticket` для WebSocket-подключения;
+- password gateway: вход по логину/паролю, локальное хранение session cookies
+  и получение свежего `ws-ticket` для WebSocket-подключения;
 - Windows/Linux release workflow для Tauri-сборок.
 
 ## Что дальше
@@ -50,6 +50,5 @@ TypeScript-слой устанавливает совместимый `window.he
 - заменить оставшиеся заглушки на настоящие Tauri-команды для packaged
   auto-update и расширенных desktop-событий;
 - перенести redirect OAuth login flow для remote gateway;
-- добавить безопасное постоянное хранилище cookie-сессии для password gateway;
 - перенести boot/progress events;
 - прогнать ручной сценарий запуска установленного приложения.
