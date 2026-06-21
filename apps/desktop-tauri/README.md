@@ -53,6 +53,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - основной React renderer из `apps/desktop`;
 - настройки подключения gateway: local mode и remote token gateway с
   сохранением, применением, проверкой и probe `/api/status`;
+- проверка живого подключения и touch текущего backend для восстановления
+  gateway после обрыва связи;
 - password gateway: вход по логину/паролю, локальное хранение session cookies
   и получение свежего `ws-ticket` для WebSocket-подключения;
 - redirect OAuth gateway: отдельное окно входа `/login`, проверка сессии через

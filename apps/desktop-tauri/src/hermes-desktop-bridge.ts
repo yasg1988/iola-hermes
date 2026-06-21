@@ -335,7 +335,7 @@ export function installHermesDesktopBridge() {
     repairBootstrap: async () => ok,
     requestMicrophoneAccess,
     resetBootstrap: async () => ok,
-    revalidateConnection: async () => ({ ok: true, rebuilt: false }),
+    revalidateConnection: () => invoke('revalidate_connection'),
     revealLogs: () => invoke('reveal_logs'),
     sanitizeWorkspaceCwd: (cwd?: null | string) => invoke('sanitize_workspace_cwd', { cwd }),
     saveClipboardImage: () => invoke('save_clipboard_image'),
@@ -369,7 +369,7 @@ export function installHermesDesktopBridge() {
       fetchMarketplace: (id: string) => invoke('fetch_marketplace_themes', { id }),
       searchMarketplace: (query: string) => invoke('search_marketplace_themes', { query })
     },
-    touchBackend: async () => ok,
+    touchBackend: (profile?: string | null) => invoke('touch_backend', { profile }),
     uninstall: {
       run: (mode?: unknown) => invoke('uninstall_run', { mode: normalizeUninstallMode(mode) }),
       summary: () => invoke('uninstall_summary')

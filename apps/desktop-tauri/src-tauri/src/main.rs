@@ -93,6 +93,22 @@ struct MarketplaceThemeResult {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RevalidateConnectionResult {
+    ok: bool,
+    rebuilt: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct TouchBackendResult {
+    ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
 struct BackendProbe {
     ok: bool,
     python: Option<String>,
@@ -562,6 +578,53 @@ fn get_gateway_ws_url(
     }
     let backend = ensure_backend(&app, &state, None)?;
     Ok(backend.ws_url)
+}
+
+#[tauri::command]
+fn revalidate_connection(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> RevalidateConnectionResult {
+    match current_backend_connection(&app, &state) {
+        Ok(connection) => match probe_backend_status(&connection, 2_500) {
+            Ok(()) => RevalidateConnectionResult {
+                ok: true,
+                rebuilt: false,
+                error: None,
+            },
+            Err(error) => RevalidateConnectionResult {
+                ok: false,
+                rebuilt: false,
+                error: Some(error),
+            },
+        },
+        Err(error) => RevalidateConnectionResult {
+            ok: false,
+            rebuilt: false,
+            error: Some(error),
+        },
+    }
+}
+
+#[tauri::command]
+fn touch_backend(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    _profile: Option<String>,
+) -> TouchBackendResult {
+    match current_backend_connection(&app, &state).and_then(|connection| {
+        probe_backend_status(&connection, 2_500)?;
+        Ok(())
+    }) {
+        Ok(()) => TouchBackendResult {
+            ok: true,
+            error: None,
+        },
+        Err(error) => TouchBackendResult {
+            ok: false,
+            error: Some(error),
+        },
+    }
 }
 
 #[tauri::command]
@@ -3783,6 +3846,27 @@ fn remote_backend_connection(
     })
 }
 
+fn current_backend_connection(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, AppState>,
+) -> Result<BackendConnection, String> {
+    if let Some(connection) = remote_backend_connection_from_config(app, state)? {
+        return Ok(connection);
+    }
+    ensure_backend(app, state, None)
+}
+
+fn probe_backend_status(connection: &BackendConnection, timeout_ms: u64) -> Result<(), String> {
+    connection.api(ApiRequest {
+        body: None,
+        method: Some("GET".to_string()),
+        path: "/api/status".to_string(),
+        profile: None,
+        timeout_ms: Some(timeout_ms),
+    })?;
+    Ok(())
+}
+
 fn canonical_or_self(path: PathBuf) -> PathBuf {
     path.canonicalize().unwrap_or(path)
 }
@@ -5141,6 +5225,7 @@ fn main() {
             read_dir,
             read_file_data_url,
             read_file_text,
+            revalidate_connection,
             reveal_logs,
             sanitize_workspace_cwd,
             save_clipboard_image,
@@ -5162,6 +5247,7 @@ fn main() {
             terminal_start,
             terminal_write,
             test_connection_config,
+            touch_backend,
             uninstall_run,
             uninstall_summary,
             updates_apply,
