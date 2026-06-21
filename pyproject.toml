@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iola-hermes"
-version = "0.17.4"
+version = "0.17.5"
 description = "Hermes RU Iola — русскоязычный открытый ИИ-агент"
 readme = "README.md"
 # Keep the upper bound explicit. We verify each new Python minor before

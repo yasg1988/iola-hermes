@@ -1,6 +1,6 @@
 [package]
 name = "iola-hermes-desktop-tauri"
-version = "0.17.2"
+version = "0.17.5"
 description = "Легкое desktop-приложение Hermes RU Iola"
 authors = ["Yakunin"]
 license = "MIT"

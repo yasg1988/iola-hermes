@@ -4969,16 +4969,16 @@ mod tests {
     #[test]
     fn parses_tauri_release_asset_versions() {
         assert_eq!(
-            release_asset_version("Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe").as_deref(),
-            Some("0.17.2")
+            release_asset_version("Hermes-RU-Iola-Tauri-0.17.5-win-x64.exe").as_deref(),
+            Some("0.17.5")
         );
         assert_eq!(
-            release_asset_version("Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.AppImage").as_deref(),
-            Some("0.17.2")
+            release_asset_version("Hermes-RU-Iola-Tauri-0.17.5-linux-x86_64.AppImage").as_deref(),
+            Some("0.17.5")
         );
         assert_eq!(
-            release_asset_version("Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.rpm").as_deref(),
-            Some("0.17.2")
+            release_asset_version("Hermes-RU-Iola-Tauri-0.17.5-linux-x86_64.rpm").as_deref(),
+            Some("0.17.5")
         );
     }
 
@@ -4986,48 +4986,48 @@ mod tests {
     #[cfg(windows)]
     fn matches_real_windows_tauri_installer_names() {
         assert!(platform_asset_matches(
-            "Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe"
+            "Hermes-RU-Iola-Tauri-0.17.5-win-x64.exe"
         ));
         assert!(!platform_asset_matches(
-            "Hermes-RU-Iola-Tauri-0.17.2-win-x64.msi"
+            "Hermes-RU-Iola-Tauri-0.17.5-win-x64.msi"
         ));
         assert!(!platform_asset_matches(
-            "Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe.blockmap"
+            "Hermes-RU-Iola-Tauri-0.17.5-win-x64.exe.blockmap"
         ));
-        assert!(!platform_asset_matches("Hermes-RU-Iola-0.17.2-win-x64.exe"));
+        assert!(!platform_asset_matches("Hermes-RU-Iola-0.17.5-win-x64.exe"));
     }
 
     #[test]
     #[cfg(windows)]
     fn selects_tauri_windows_installer_from_mixed_release_assets() {
         let assets = vec![
-            release_asset("Hermes-RU-Iola-0.17.2-win-x64.exe"),
-            release_asset("Hermes-RU-Iola-0.17.2-win-x64.exe.blockmap"),
-            release_asset("Hermes-RU-Iola-0.17.2-win-x64.msi"),
-            release_asset("Hermes-RU-Iola-Tauri-0.17.2-win-x64.msi"),
-            release_asset("Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe"),
-            release_asset("iola_hermes-0.17.2-py3-none-any.whl"),
+            release_asset("Hermes-RU-Iola-0.17.5-win-x64.exe"),
+            release_asset("Hermes-RU-Iola-0.17.5-win-x64.exe.blockmap"),
+            release_asset("Hermes-RU-Iola-0.17.5-win-x64.msi"),
+            release_asset("Hermes-RU-Iola-Tauri-0.17.5-win-x64.msi"),
+            release_asset("Hermes-RU-Iola-Tauri-0.17.5-win-x64.exe"),
+            release_asset("iola_hermes-0.17.5-py3-none-any.whl"),
         ];
 
         let selected = select_packaged_update_asset(&assets).expect("expected Tauri asset");
 
-        assert_eq!(selected.name, "Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe");
+        assert_eq!(selected.name, "Hermes-RU-Iola-Tauri-0.17.5-win-x64.exe");
     }
 
     #[test]
     #[cfg(target_os = "linux")]
     fn matches_real_linux_tauri_appimage_names() {
         assert!(platform_asset_matches(
-            "Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.AppImage"
+            "Hermes-RU-Iola-Tauri-0.17.5-linux-x86_64.AppImage"
         ));
         assert!(!platform_asset_matches(
-            "Hermes-RU-Iola-Tauri-0.17.2-linux-amd64.deb"
+            "Hermes-RU-Iola-Tauri-0.17.5-linux-amd64.deb"
         ));
         assert!(!platform_asset_matches(
-            "Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.rpm"
+            "Hermes-RU-Iola-Tauri-0.17.5-linux-x86_64.rpm"
         ));
         assert!(!platform_asset_matches(
-            "Hermes-RU-Iola-0.17.2-linux-x86_64.AppImage"
+            "Hermes-RU-Iola-0.17.5-linux-x86_64.AppImage"
         ));
     }
 
@@ -5035,20 +5035,20 @@ mod tests {
     #[cfg(target_os = "linux")]
     fn selects_tauri_linux_appimage_from_mixed_release_assets() {
         let assets = vec![
-            release_asset("Hermes-RU-Iola-0.17.2-linux-amd64.deb"),
-            release_asset("Hermes-RU-Iola-0.17.2-linux-x86_64.AppImage"),
-            release_asset("Hermes-RU-Iola-0.17.2-linux-x86_64.rpm"),
-            release_asset("Hermes-RU-Iola-Tauri-0.17.2-linux-amd64.deb"),
-            release_asset("Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.AppImage"),
-            release_asset("Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.rpm"),
-            release_asset("iola_hermes-0.17.2.tar.gz"),
+            release_asset("Hermes-RU-Iola-0.17.5-linux-amd64.deb"),
+            release_asset("Hermes-RU-Iola-0.17.5-linux-x86_64.AppImage"),
+            release_asset("Hermes-RU-Iola-0.17.5-linux-x86_64.rpm"),
+            release_asset("Hermes-RU-Iola-Tauri-0.17.5-linux-amd64.deb"),
+            release_asset("Hermes-RU-Iola-Tauri-0.17.5-linux-x86_64.AppImage"),
+            release_asset("Hermes-RU-Iola-Tauri-0.17.5-linux-x86_64.rpm"),
+            release_asset("iola_hermes-0.17.5.tar.gz"),
         ];
 
         let selected = select_packaged_update_asset(&assets).expect("expected Tauri asset");
 
         assert_eq!(
             selected.name,
-            "Hermes-RU-Iola-Tauri-0.17.2-linux-x86_64.AppImage"
+            "Hermes-RU-Iola-Tauri-0.17.5-linux-x86_64.AppImage"
         );
     }
 }

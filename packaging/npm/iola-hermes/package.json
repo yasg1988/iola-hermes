@@ -1,6 +1,6 @@
 {
   "name": "iola-hermes",
-  "version": "0.17.4",
+  "version": "0.17.5",
   "description": "npm wrapper для Hermes RU Iola, русскоязычного форка Hermes Agent.",
   "license": "MIT",
   "author": "Yakunin <yasg1988@gmail.com>",
