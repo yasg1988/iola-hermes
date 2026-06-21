@@ -14,16 +14,20 @@ npm run --workspace apps/desktop-tauri check
 npm run --workspace apps/desktop-tauri build
 ```
 
-На первом этапе это рабочая легкая панель: она проверяет Python backend,
-показывает версию и запускает dashboard. Полный React UI из `apps/desktop`
-будет подключен после переноса совместимого `window.hermesDesktop` bridge из
-Electron preload.
+На текущем этапе это рабочая легкая панель и первый слой совместимости с
+боевым desktop UI: Rust-часть поднимает локальный `hermes dashboard`, держит
+session token, отдает `getConnection`/`getGatewayWsUrl` и проксирует REST
+запросы через `hermes_api`. TypeScript-слой устанавливает
+`window.hermesDesktop`, чтобы следующий этап мог подключить основной React UI
+из `apps/desktop`.
 
 ## Что уже есть
 
 - отдельное приложение `apps/desktop-tauri`;
 - отдельный Rust crate `src-tauri`;
 - команды `backend_probe`, `backend_version`, `start_backend`;
+- команды `get_connection`, `get_gateway_ws_url`, `hermes_api`;
+- TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - отдельный минимальный Vite UI для проверки Rust/backend-интеграции.
 
 ## Что дальше

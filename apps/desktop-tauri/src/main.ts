@@ -1,5 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
+import { installHermesDesktopBridge } from './hermes-desktop-bridge'
 import './styles.css'
+
+installHermesDesktopBridge()
 
 interface BackendProbe {
   ok: boolean
