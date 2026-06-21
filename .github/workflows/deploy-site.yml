@@ -25,8 +25,6 @@ on:
 permissions:
   contents: read
   actions: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -52,12 +50,28 @@ jobs:
           fi
           curl -X POST "$VERCEL_DEPLOY_HOOK"
 
-  deploy-docs:
+  check-pages:
     if: github.repository == 'yasg1988/iola-hermes'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    outputs:
+      enabled: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - name: Check GitHub Pages availability
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::GitHub Pages is not enabled for this repository; skipping Pages deploy"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-docs:
+    if: github.repository == 'yasg1988/iola-hermes' && needs.check-pages.outputs.enabled == 'true'
+    needs: check-pages
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
@@ -179,25 +193,22 @@ jobs:
             cp website/build/llms-full.txt _site/llms-full.txt
           fi
 
-      - name: Check GitHub Pages availability
-        id: pages
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::GitHub Pages is not enabled for this repository; skipping Pages deploy"
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Upload artifact
-        if: steps.pages.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa  # v3
         with:
           path: _site
 
+  deploy-pages:
+    if: github.repository == 'yasg1988/iola-hermes' && needs.check-pages.outputs.enabled == 'true'
+    needs: [check-pages, build-docs]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
-        if: steps.pages.outputs.enabled == 'true'
         id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e  # v4
