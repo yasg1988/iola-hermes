@@ -4799,8 +4799,9 @@ mod tests {
 
         let info = resolve_worktree(&repo.join("src")).expect("worktree info");
 
-        assert_eq!(info.repo_root, normalize_path_string(repo.clone()));
-        assert_eq!(info.worktree_root, normalize_path_string(repo));
+        let expected_repo = normalize_path_string(repo.canonicalize().unwrap_or(repo));
+        assert_eq!(info.repo_root, expected_repo);
+        assert_eq!(info.worktree_root, expected_repo);
         assert!(info.is_main_worktree);
         assert_eq!(info.branch.as_deref(), Some("main"));
         let _ = fs::remove_dir_all(temp);
@@ -4826,8 +4827,10 @@ mod tests {
 
         let info = resolve_worktree(&linked).expect("worktree info");
 
-        assert_eq!(info.repo_root, normalize_path_string(repo));
-        assert_eq!(info.worktree_root, normalize_path_string(linked));
+        let expected_repo = normalize_path_string(repo.canonicalize().unwrap_or(repo));
+        let expected_linked = normalize_path_string(linked.canonicalize().unwrap_or(linked));
+        assert_eq!(info.repo_root, expected_repo);
+        assert_eq!(info.worktree_root, expected_linked);
         assert!(!info.is_main_worktree);
         assert_eq!(info.branch.as_deref(), Some("feature/rust"));
         let _ = fs::remove_dir_all(temp);

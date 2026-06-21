@@ -1,8 +1,6 @@
 name: Deploy Site
 
 on:
-  release:
-    types: [published]
   push:
     branches: [main]
     paths:
@@ -32,12 +30,9 @@ concurrency:
 
 jobs:
   deploy-vercel:
-    # Triggered automatically on release publish (production cuts) and
-    # manually via `gh workflow run deploy-site.yml` when an out-of-band
-    # main commit needs to ship live before the next release tag — e.g.
-    # a skills-index PR that doesn't touch website/** paths and so
-    # doesn't auto-deploy via the deploy-docs path.
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    # Triggered manually when an out-of-band main commit needs to ship live
+    # before the next docs-related push deploy.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Vercel Deploy
