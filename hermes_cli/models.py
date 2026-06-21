@@ -2354,6 +2354,10 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
                     return live
         except Exception:
             pass
+        curated = list(_PROVIDER_MODELS.get("gmi", []))
+        if normalized in _MODELS_DEV_PREFERRED:
+            return _merge_with_models_dev(normalized, curated)
+        return curated
     if normalized == "custom":
         base_url = _get_custom_base_url()
         if base_url:
