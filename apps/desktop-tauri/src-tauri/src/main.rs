@@ -458,6 +458,31 @@ fn write_clipboard(app: tauri::AppHandle, text: String) -> Result<bool, String> 
 }
 
 #[tauri::command]
+fn save_image_from_url(url: String) -> Result<bool, String> {
+    let response = reqwest::blocking::get(&url)
+        .map_err(|error| format!("Не удалось скачать изображение: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!("Сервер вернул {}", response.status()));
+    }
+    let mime = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    let ext = image_extension_from_url_or_mime(&url, mime);
+    let bytes = response
+        .bytes()
+        .map_err(|error| format!("Не удалось прочитать изображение: {error}"))?;
+    save_image_bytes(bytes.as_ref(), &ext)?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn save_image_buffer(data: Vec<u8>, ext: String) -> Result<String, String> {
+    save_image_bytes(&data, &ext)
+}
+
+#[tauri::command]
 fn terminal_start(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
@@ -1125,6 +1150,61 @@ fn home_dir() -> Option<PathBuf> {
     }
 }
 
+fn save_image_bytes(data: &[u8], ext: &str) -> Result<String, String> {
+    let dir = dirs::download_dir()
+        .or_else(home_dir)
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let extension = sanitize_extension(ext);
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+    let mut path = dir.join(format!("hermes-image-{stamp}.{extension}"));
+    let mut counter = 1;
+    while path.exists() {
+        path = dir.join(format!("hermes-image-{stamp}-{counter}.{extension}"));
+        counter += 1;
+    }
+    fs::write(&path, data).map_err(|error| format!("Не удалось сохранить изображение: {error}"))?;
+    Ok(normalize_path_string(path))
+}
+
+fn sanitize_extension(ext: &str) -> String {
+    let cleaned = ext
+        .trim()
+        .trim_start_matches('.')
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_lowercase();
+    match cleaned.as_str() {
+        "gif" | "jpeg" | "jpg" | "png" | "svg" | "webp" => cleaned,
+        _ => "png".to_string(),
+    }
+}
+
+fn image_extension_from_url_or_mime(url: &str, mime: &str) -> String {
+    if let Some(ext) = Path::new(url.split('?').next().unwrap_or(url))
+        .extension()
+        .and_then(|value| value.to_str())
+    {
+        let sanitized = sanitize_extension(ext);
+        if sanitized != "png" || ext.eq_ignore_ascii_case("png") {
+            return sanitized;
+        }
+    }
+
+    match mime.split(';').next().unwrap_or("").trim() {
+        "image/gif" => "gif",
+        "image/jpeg" => "jpg",
+        "image/svg+xml" => "svg",
+        "image/webp" => "webp",
+        _ => "png",
+    }
+    .to_string()
+}
+
 #[cfg(windows)]
 fn windows_powershell_path() -> Option<PathBuf> {
     let windir = env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
@@ -1165,6 +1245,8 @@ fn main() {
             read_file_data_url,
             read_file_text,
             sanitize_workspace_cwd,
+            save_image_buffer,
+            save_image_from_url,
             select_paths,
             start_backend,
             terminal_dispose,

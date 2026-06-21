@@ -82,6 +82,10 @@ function subscribe<T>(event: string, callback: (payload: T) => void): Unsubscrib
   }
 }
 
+function bytesForInvoke(data: ArrayBuffer | Uint8Array): number[] {
+  return Array.from(data instanceof Uint8Array ? data : new Uint8Array(data))
+}
+
 export function installHermesDesktopBridge() {
   const target = bridgeWindow()
   if (target.hermesDesktop) {
@@ -149,8 +153,9 @@ export function installHermesDesktopBridge() {
     sanitizeWorkspaceCwd: (cwd?: null | string) => invoke('sanitize_workspace_cwd', { cwd }),
     saveClipboardImage: unsupported('saveClipboardImage'),
     saveConnectionConfig: async () => localConnectionConfig,
-    saveImageBuffer: unsupported('saveImageBuffer'),
-    saveImageFromUrl: async () => false,
+    saveImageBuffer: (data: ArrayBuffer | Uint8Array, ext: string) =>
+      invoke('save_image_buffer', { data: bytesForInvoke(data), ext }),
+    saveImageFromUrl: (url: string) => invoke('save_image_from_url', { url }),
     selectPaths: (options?: unknown) => invoke('select_paths', { options }),
     setNativeTheme: () => undefined,
     setPreviewShortcutActive: () => undefined,
