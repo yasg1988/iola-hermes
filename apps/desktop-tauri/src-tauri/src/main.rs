@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child as ProcessChild, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 
@@ -150,6 +150,19 @@ struct TerminalSession {
 struct TerminalExit {
     code: Option<i32>,
     signal: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct RevealLogsResult {
+    error: Option<String>,
+    ok: bool,
+    path: String,
+}
+
+#[derive(Debug, Serialize)]
+struct RecentLogsResult {
+    lines: Vec<String>,
+    path: String,
 }
 
 struct ShellSpec {
@@ -480,6 +493,47 @@ fn save_image_from_url(url: String) -> Result<bool, String> {
 #[tauri::command]
 fn save_image_buffer(data: Vec<u8>, ext: String) -> Result<String, String> {
     save_image_bytes(&data, &ext)
+}
+
+#[tauri::command]
+fn reveal_logs(app: tauri::AppHandle) -> RevealLogsResult {
+    match ensure_log_dir(&app) {
+        Ok(path) => match open::that(&path) {
+            Ok(()) => RevealLogsResult {
+                error: None,
+                ok: true,
+                path: normalize_path_string(path),
+            },
+            Err(error) => RevealLogsResult {
+                error: Some(error.to_string()),
+                ok: false,
+                path: normalize_path_string(path),
+            },
+        },
+        Err(error) => RevealLogsResult {
+            error: Some(error),
+            ok: false,
+            path: String::new(),
+        },
+    }
+}
+
+#[tauri::command]
+fn get_recent_logs(app: tauri::AppHandle) -> RecentLogsResult {
+    let path = match ensure_log_dir(&app) {
+        Ok(path) => path,
+        Err(error) => {
+            return RecentLogsResult {
+                lines: vec![error],
+                path: String::new(),
+            }
+        }
+    };
+    let lines = read_recent_log_lines(&path, 200);
+    RecentLogsResult {
+        lines,
+        path: normalize_path_string(path),
+    }
 }
 
 #[tauri::command]
@@ -1205,6 +1259,55 @@ fn image_extension_from_url_or_mime(url: &str, mime: &str) -> String {
     .to_string()
 }
 
+fn ensure_log_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let path = app
+        .path()
+        .app_log_dir()
+        .map_err(|error| format!("Не удалось определить каталог логов: {error}"))?;
+    fs::create_dir_all(&path)
+        .map_err(|error| format!("Не удалось создать каталог логов: {error}"))?;
+    Ok(path)
+}
+
+fn read_recent_log_lines(dir: &Path, limit: usize) -> Vec<String> {
+    let mut files = match fs::read_dir(dir) {
+        Ok(entries) => entries
+            .flatten()
+            .filter_map(|entry| {
+                let path = entry.path();
+                let modified = entry
+                    .metadata()
+                    .and_then(|metadata| metadata.modified())
+                    .ok()?;
+                Some((modified, path))
+            })
+            .collect::<Vec<_>>(),
+        Err(error) => return vec![format!("Не удалось прочитать каталог логов: {error}")],
+    };
+    files.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let Some((_, path)) = files.into_iter().find(|(_, path)| path.is_file()) else {
+        return Vec::new();
+    };
+    let content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) => {
+            return vec![format!(
+                "Не удалось прочитать лог {}: {error}",
+                normalize_path_string(path)
+            )]
+        }
+    };
+    let mut lines = content
+        .lines()
+        .rev()
+        .take(limit)
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    lines.reverse();
+    lines
+}
+
 #[cfg(windows)]
 fn windows_powershell_path() -> Option<PathBuf> {
     let windir = env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
@@ -1237,6 +1340,7 @@ fn main() {
             get_boot_progress,
             get_connection,
             get_gateway_ws_url,
+            get_recent_logs,
             get_version,
             git_root,
             hermes_api,
@@ -1244,6 +1348,7 @@ fn main() {
             read_dir,
             read_file_data_url,
             read_file_text,
+            reveal_logs,
             sanitize_workspace_cwd,
             save_image_buffer,
             save_image_from_url,
