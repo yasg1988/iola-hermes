@@ -94,13 +94,13 @@ export function installHermesDesktopBridge() {
 
   target.hermesDesktop = {
     api: <T>(request: ApiRequest) => invoke<T>('hermes_api', { request: normalizeApiRequest(request) }),
-    applyConnectionConfig: async () => localConnectionConfig,
+    applyConnectionConfig: (payload: unknown) => invoke('apply_connection_config', { payload }),
     cancelBootstrap: async () => ({ cancelled: false, ok: true }),
     fetchLinkTitle: async (url: string) => url,
     getBootProgress: () => invoke('get_boot_progress'),
     getBootstrapState: async () => emptyBootState,
     getConnection: (profile?: null | string) => invoke('get_connection', { profile }),
-    getConnectionConfig: async () => localConnectionConfig,
+    getConnectionConfig: (profile?: null | string) => invoke('get_connection_config', { profile }),
     getGatewayWsUrl: (profile?: null | string) => invoke('get_gateway_ws_url', { profile }),
     getPathForFile: () => '',
     getRecentLogs: () => invoke('get_recent_logs'),
@@ -114,8 +114,8 @@ export function installHermesDesktopBridge() {
       url: targetPath
     }),
     notify: async () => true,
-    oauthLoginConnectionConfig: async () => ({ baseUrl: '', connected: false, ok: false }),
-    oauthLogoutConnectionConfig: async () => ({ connected: false, ok: true }),
+    oauthLoginConnectionConfig: (remoteUrl: string) => invoke('oauth_login_connection_config', { remoteUrl }),
+    oauthLogoutConnectionConfig: (remoteUrl?: string) => invoke('oauth_logout_connection_config', { remoteUrl }),
     onBackendExit: () => noopUnsubscribe,
     onBootProgress: () => noopUnsubscribe,
     onBootstrapEvent: () => noopUnsubscribe,
@@ -134,14 +134,7 @@ export function installHermesDesktopBridge() {
       get: async () => ({ profile: null }),
       set: async (name: null | string) => ({ profile: name })
     },
-    probeConnectionConfig: async (remoteUrl: string) => ({
-      authMode: 'unknown',
-      baseUrl: remoteUrl,
-      error: null,
-      providers: [],
-      reachable: false,
-      version: null
-    }),
+    probeConnectionConfig: (remoteUrl: string) => invoke('probe_connection_config', { remoteUrl }),
     readDir: (path: string) => invoke('read_dir', { path }),
     readFileDataUrl: (filePath: string) => invoke('read_file_data_url', { filePath }),
     readFileText: (filePath: string) => invoke('read_file_text', { filePath }),
@@ -152,7 +145,7 @@ export function installHermesDesktopBridge() {
     revealLogs: () => invoke('reveal_logs'),
     sanitizeWorkspaceCwd: (cwd?: null | string) => invoke('sanitize_workspace_cwd', { cwd }),
     saveClipboardImage: unsupported('saveClipboardImage'),
-    saveConnectionConfig: async () => localConnectionConfig,
+    saveConnectionConfig: (payload: unknown) => invoke('save_connection_config', { payload }),
     saveImageBuffer: (data: ArrayBuffer | Uint8Array, ext: string) =>
       invoke('save_image_buffer', { data: bytesForInvoke(data), ext }),
     saveImageFromUrl: (url: string) => invoke('save_image_from_url', { url }),
@@ -177,7 +170,7 @@ export function installHermesDesktopBridge() {
       start: (options?: unknown) => invoke('terminal_start', { options }),
       write: (id: string, data: string) => invoke('terminal_write', { id, data })
     },
-    testConnectionConfig: async () => ({ baseUrl: '', ok: false, version: null }),
+    testConnectionConfig: (payload: unknown) => invoke('test_connection_config', { payload }),
     themes: {
       fetchMarketplace: async () => ({ displayName: '', extensionId: '', themes: [] }),
       searchMarketplace: async () => []

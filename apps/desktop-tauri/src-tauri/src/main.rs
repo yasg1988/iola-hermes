@@ -62,6 +62,72 @@ struct HermesConnection {
     ws_url: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopConnectionConfigFile {
+    mode: String,
+    remote: DesktopRemoteConfig,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopRemoteConfig {
+    auth_mode: Option<String>,
+    token: Option<String>,
+    url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopConnectionConfigInput {
+    mode: String,
+    remote_auth_mode: Option<String>,
+    remote_token: Option<String>,
+    remote_url: Option<String>,
+    #[allow(dead_code)]
+    profile: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopConnectionConfigView {
+    env_override: bool,
+    mode: String,
+    profile: Option<String>,
+    remote_auth_mode: String,
+    remote_oauth_connected: bool,
+    remote_token_preview: Option<String>,
+    remote_token_set: bool,
+    remote_url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopConnectionTestResult {
+    base_url: String,
+    ok: bool,
+    version: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopAuthProvider {
+    display_name: String,
+    name: String,
+    supports_password: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopConnectionProbeResult {
+    auth_mode: String,
+    base_url: String,
+    error: Option<String>,
+    providers: Vec<DesktopAuthProvider>,
+    reachable: bool,
+    version: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ApiRequest {
@@ -240,20 +306,28 @@ fn start_backend(
 
 #[tauri::command]
 fn get_connection(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     _profile: Option<String>,
 ) -> Result<HermesConnection, String> {
+    if let Some(connection) = remote_connection_from_config(&app)? {
+        return Ok(connection);
+    }
     let backend = ensure_backend(&state, None)?;
     Ok(backend.connection())
 }
 
 #[tauri::command]
 fn get_gateway_ws_url(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     _profile: Option<String>,
 ) -> Result<String, String> {
+    if let Some(connection) = remote_connection_from_config(&app)? {
+        return Ok(connection.ws_url);
+    }
     let backend = ensure_backend(&state, None)?;
-    Ok(backend.ws_url())
+    Ok(backend.ws_url)
 }
 
 #[tauri::command]
@@ -274,9 +348,13 @@ fn get_boot_progress() -> BootProgress {
 
 #[tauri::command]
 fn hermes_api(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     request: ApiRequest,
 ) -> Result<serde_json::Value, String> {
+    if let Some(connection) = remote_backend_connection_from_config(&app)? {
+        return connection.api(request);
+    }
     let backend = ensure_backend(&state, None)?;
     backend.api(request)
 }
@@ -289,6 +367,206 @@ fn get_version() -> serde_json::Value {
         "electronVersion": null,
         "nodeVersion": null,
         "runtime": "tauri"
+    })
+}
+
+#[tauri::command]
+fn get_connection_config(
+    app: tauri::AppHandle,
+    profile: Option<String>,
+) -> Result<DesktopConnectionConfigView, String> {
+    let config = read_connection_config(&app)?;
+    Ok(connection_config_view(&config, profile))
+}
+
+#[tauri::command]
+fn save_connection_config(
+    app: tauri::AppHandle,
+    payload: DesktopConnectionConfigInput,
+) -> Result<DesktopConnectionConfigView, String> {
+    let existing = read_connection_config(&app)?;
+    let config = coerce_connection_config(payload, existing)?;
+    write_connection_config(&app, &config)?;
+    Ok(connection_config_view(&config, None))
+}
+
+#[tauri::command]
+fn apply_connection_config(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    payload: DesktopConnectionConfigInput,
+) -> Result<DesktopConnectionConfigView, String> {
+    let existing = read_connection_config(&app)?;
+    let config = coerce_connection_config(payload, existing)?;
+    write_connection_config(&app, &config)?;
+    if config.mode != "remote" {
+        let mut backend = state
+            .backend
+            .lock()
+            .map_err(|_| "Backend state lock poisoned".to_string())?;
+        *backend = None;
+    }
+    Ok(connection_config_view(&config, None))
+}
+
+#[tauri::command]
+fn test_connection_config(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    payload: DesktopConnectionConfigInput,
+) -> Result<DesktopConnectionTestResult, String> {
+    let existing = read_connection_config(&app)?;
+    let config = coerce_connection_config_with_token(payload, existing, false)?;
+    let connection = if config.mode == "remote" {
+        remote_backend_connection(&config)?
+    } else {
+        ensure_backend(&state, None)?
+    };
+    let status = connection.api(ApiRequest {
+        body: None,
+        method: Some("GET".to_string()),
+        path: "/api/status".to_string(),
+        profile: None,
+        timeout_ms: Some(8_000),
+    })?;
+    Ok(DesktopConnectionTestResult {
+        base_url: connection.base_url,
+        ok: true,
+        version: status
+            .get("version")
+            .and_then(|value| value.as_str())
+            .map(str::to_string),
+    })
+}
+
+#[tauri::command]
+fn probe_connection_config(remote_url: String) -> DesktopConnectionProbeResult {
+    let base_url = match normalize_remote_base_url(&remote_url) {
+        Ok(url) => url,
+        Err(error) => {
+            return DesktopConnectionProbeResult {
+                auth_mode: "unknown".to_string(),
+                base_url: remote_url,
+                error: Some(error),
+                providers: Vec::new(),
+                reachable: false,
+                version: None,
+            }
+        }
+    };
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(8))
+        .build()
+    {
+        Ok(client) => client,
+        Err(error) => {
+            return DesktopConnectionProbeResult {
+                auth_mode: "unknown".to_string(),
+                base_url,
+                error: Some(error.to_string()),
+                providers: Vec::new(),
+                reachable: false,
+                version: None,
+            }
+        }
+    };
+    let status = match client.get(format!("{base_url}/api/status")).send() {
+        Ok(response) if response.status().is_success() => response.json::<serde_json::Value>().ok(),
+        Ok(response) => {
+            return DesktopConnectionProbeResult {
+                auth_mode: "unknown".to_string(),
+                base_url,
+                error: Some(format!("HTTP {}", response.status())),
+                providers: Vec::new(),
+                reachable: false,
+                version: None,
+            }
+        }
+        Err(error) => {
+            return DesktopConnectionProbeResult {
+                auth_mode: "unknown".to_string(),
+                base_url,
+                error: Some(error.to_string()),
+                providers: Vec::new(),
+                reachable: false,
+                version: None,
+            }
+        }
+    };
+    let auth_mode = if status
+        .as_ref()
+        .and_then(|value| value.get("auth_required"))
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false)
+    {
+        "oauth"
+    } else {
+        "token"
+    };
+
+    let providers = if auth_mode == "oauth" {
+        client
+            .get(format!("{base_url}/api/auth/providers"))
+            .send()
+            .ok()
+            .and_then(|response| response.json::<serde_json::Value>().ok())
+            .and_then(|body| {
+                body.get("providers")
+                    .and_then(|value| value.as_array())
+                    .cloned()
+            })
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|provider| {
+                let name = provider.get("name")?.as_str()?.to_string();
+                Some(DesktopAuthProvider {
+                    display_name: provider
+                        .get("display_name")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or(&name)
+                        .to_string(),
+                    name,
+                    supports_password: provider
+                        .get("supports_password")
+                        .and_then(|value| value.as_bool())
+                        .unwrap_or(false),
+                })
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    DesktopConnectionProbeResult {
+        auth_mode: auth_mode.to_string(),
+        base_url,
+        error: None,
+        providers,
+        reachable: true,
+        version: status
+            .as_ref()
+            .and_then(|value| value.get("version"))
+            .and_then(|value| value.as_str())
+            .map(str::to_string),
+    }
+}
+
+#[tauri::command]
+fn oauth_login_connection_config(remote_url: String) -> Result<serde_json::Value, String> {
+    let base_url = normalize_remote_base_url(&remote_url)?;
+    Ok(serde_json::json!({
+        "ok": false,
+        "baseUrl": base_url,
+        "connected": false,
+        "error": "OAuth вход пока не реализован в Tauri-оболочке"
+    }))
+}
+
+#[tauri::command]
+fn oauth_logout_connection_config(_remote_url: Option<String>) -> serde_json::Value {
+    serde_json::json!({
+        "ok": true,
+        "connected": false
     })
 }
 
@@ -688,10 +966,12 @@ fn terminal_dispose(state: tauri::State<'_, AppState>, id: String) -> Result<boo
 
 struct BackendConnection {
     base_url: String,
+    mode: String,
     pid: u32,
-    port: u16,
     python: String,
+    source: String,
     token: String,
+    ws_url: String,
 }
 
 impl BackendConnection {
@@ -701,17 +981,13 @@ impl BackendConnection {
             base_url: self.base_url.clone(),
             is_fullscreen: false,
             logs: Vec::new(),
-            mode: "local".to_string(),
+            mode: self.mode.clone(),
             native_overlay_width: 138,
-            source: "local".to_string(),
+            source: self.source.clone(),
             token: self.token.clone(),
             window_button_position: None,
-            ws_url: self.ws_url(),
+            ws_url: self.ws_url.clone(),
         }
-    }
-
-    fn ws_url(&self) -> String {
-        format!("ws://127.0.0.1:{}/api/ws?token={}", self.port, self.token)
     }
 
     fn api(&self, request: ApiRequest) -> Result<serde_json::Value, String> {
@@ -800,10 +1076,12 @@ impl BackendRuntime {
     fn connection(&self) -> BackendConnection {
         BackendConnection {
             base_url: format!("http://127.0.0.1:{}", self.port),
+            mode: "local".to_string(),
             pid: self.child.id(),
-            port: self.port,
             python: self.python.clone(),
+            source: "local".to_string(),
             token: self.token.clone(),
+            ws_url: format!("ws://127.0.0.1:{}/api/ws?token={}", self.port, self.token),
         }
     }
 }
@@ -1014,6 +1292,239 @@ fn command_error(label: &str, output: &std::process::Output) -> String {
     } else {
         format!("{label}: {details}")
     }
+}
+
+fn connection_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| format!("Не удалось определить каталог настроек: {error}"))?;
+    Ok(dir.join("connection.json"))
+}
+
+fn default_connection_config() -> DesktopConnectionConfigFile {
+    DesktopConnectionConfigFile {
+        mode: "local".to_string(),
+        remote: DesktopRemoteConfig {
+            auth_mode: Some("token".to_string()),
+            token: None,
+            url: None,
+        },
+    }
+}
+
+fn read_connection_config(app: &tauri::AppHandle) -> Result<DesktopConnectionConfigFile, String> {
+    let path = connection_config_path(app)?;
+    let raw = match fs::read_to_string(&path) {
+        Ok(raw) => raw,
+        Err(_) => return Ok(default_connection_config()),
+    };
+    let parsed = serde_json::from_str::<DesktopConnectionConfigFile>(&raw)
+        .unwrap_or_else(|_| default_connection_config());
+    Ok(normalize_connection_config(parsed))
+}
+
+fn write_connection_config(
+    app: &tauri::AppHandle,
+    config: &DesktopConnectionConfigFile,
+) -> Result<(), String> {
+    let path = connection_config_path(app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Не удалось создать каталог настроек: {error}"))?;
+    }
+    let raw = serde_json::to_string_pretty(config)
+        .map_err(|error| format!("Не удалось сериализовать настройки подключения: {error}"))?;
+    fs::write(path, raw)
+        .map_err(|error| format!("Не удалось сохранить настройки подключения: {error}"))
+}
+
+fn normalize_connection_config(
+    mut config: DesktopConnectionConfigFile,
+) -> DesktopConnectionConfigFile {
+    config.mode = if config.mode == "remote" {
+        "remote".to_string()
+    } else {
+        "local".to_string()
+    };
+    config.remote.auth_mode = Some(norm_auth_mode(config.remote.auth_mode.as_deref()).to_string());
+    if let Some(url) = config
+        .remote
+        .url
+        .clone()
+        .filter(|value| !value.trim().is_empty())
+    {
+        config.remote.url = normalize_remote_base_url(&url).ok();
+    }
+    config
+}
+
+fn coerce_connection_config(
+    input: DesktopConnectionConfigInput,
+    existing: DesktopConnectionConfigFile,
+) -> Result<DesktopConnectionConfigFile, String> {
+    coerce_connection_config_with_token(input, existing, true)
+}
+
+fn coerce_connection_config_with_token(
+    input: DesktopConnectionConfigInput,
+    existing: DesktopConnectionConfigFile,
+    _persist_token: bool,
+) -> Result<DesktopConnectionConfigFile, String> {
+    let mode = if input.mode == "remote" {
+        "remote"
+    } else {
+        "local"
+    };
+    let auth_mode = norm_auth_mode(
+        input
+            .remote_auth_mode
+            .as_deref()
+            .or(existing.remote.auth_mode.as_deref()),
+    );
+    let remote_url = input
+        .remote_url
+        .as_deref()
+        .or(existing.remote.url.as_deref())
+        .unwrap_or("")
+        .trim();
+    let token = input
+        .remote_token
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| existing.remote.token.clone());
+
+    let normalized_url = if remote_url.is_empty() {
+        None
+    } else {
+        Some(normalize_remote_base_url(remote_url)?)
+    };
+
+    if mode == "remote" {
+        let url = normalized_url
+            .clone()
+            .ok_or_else(|| "URL удаленного Hermes gateway обязателен.".to_string())?;
+        if auth_mode == "token" && token.as_deref().unwrap_or("").is_empty() {
+            return Err("Session token удаленного Hermes gateway обязателен.".to_string());
+        }
+        Ok(DesktopConnectionConfigFile {
+            mode: "remote".to_string(),
+            remote: DesktopRemoteConfig {
+                auth_mode: Some(auth_mode.to_string()),
+                token,
+                url: Some(url),
+            },
+        })
+    } else {
+        Ok(DesktopConnectionConfigFile {
+            mode: "local".to_string(),
+            remote: DesktopRemoteConfig {
+                auth_mode: Some(auth_mode.to_string()),
+                token,
+                url: normalized_url,
+            },
+        })
+    }
+}
+
+fn connection_config_view(
+    config: &DesktopConnectionConfigFile,
+    profile: Option<String>,
+) -> DesktopConnectionConfigView {
+    let token = config.remote.token.clone().unwrap_or_default();
+    DesktopConnectionConfigView {
+        env_override: false,
+        mode: config.mode.clone(),
+        profile,
+        remote_auth_mode: norm_auth_mode(config.remote.auth_mode.as_deref()).to_string(),
+        remote_oauth_connected: false,
+        remote_token_preview: token_preview(&token),
+        remote_token_set: !token.is_empty(),
+        remote_url: config.remote.url.clone().unwrap_or_default(),
+    }
+}
+
+fn norm_auth_mode(value: Option<&str>) -> &'static str {
+    if value == Some("oauth") {
+        "oauth"
+    } else {
+        "token"
+    }
+}
+
+fn token_preview(token: &str) -> Option<String> {
+    if token.is_empty() {
+        None
+    } else if token.len() <= 8 {
+        Some("********".to_string())
+    } else {
+        let start = &token[..4];
+        let end = &token[token.len().saturating_sub(4)..];
+        Some(format!("{start}...{end}"))
+    }
+}
+
+fn normalize_remote_base_url(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim().trim_end_matches('/');
+    if !(trimmed.starts_with("http://") || trimmed.starts_with("https://")) {
+        return Err("URL должен начинаться с http:// или https://".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn remote_connection_from_config(
+    app: &tauri::AppHandle,
+) -> Result<Option<HermesConnection>, String> {
+    Ok(remote_backend_connection_from_config(app)?.map(|connection| connection.connection()))
+}
+
+fn remote_backend_connection_from_config(
+    app: &tauri::AppHandle,
+) -> Result<Option<BackendConnection>, String> {
+    let config = read_connection_config(app)?;
+    if config.mode != "remote" {
+        return Ok(None);
+    }
+    Ok(Some(remote_backend_connection(&config)?))
+}
+
+fn remote_backend_connection(
+    config: &DesktopConnectionConfigFile,
+) -> Result<BackendConnection, String> {
+    let auth_mode = norm_auth_mode(config.remote.auth_mode.as_deref());
+    if auth_mode == "oauth" {
+        return Err("OAuth gateway пока не поддерживается в Tauri-оболочке. Используйте token gateway или local mode.".to_string());
+    }
+    let base_url = config
+        .remote
+        .url
+        .clone()
+        .ok_or_else(|| "URL удаленного Hermes gateway не задан.".to_string())?;
+    let token = config
+        .remote
+        .token
+        .clone()
+        .ok_or_else(|| "Session token удаленного Hermes gateway не задан.".to_string())?;
+    let ws_scheme = if base_url.starts_with("https://") {
+        "wss"
+    } else {
+        "ws"
+    };
+    let ws_base = base_url
+        .trim_start_matches("https://")
+        .trim_start_matches("http://")
+        .to_string();
+    Ok(BackendConnection {
+        base_url,
+        mode: "remote".to_string(),
+        pid: 0,
+        python: String::new(),
+        source: "settings".to_string(),
+        token: token.clone(),
+        ws_url: format!("{ws_scheme}://{ws_base}/api/ws?token={token}"),
+    })
 }
 
 fn canonical_or_self(path: PathBuf) -> PathBuf {
@@ -1335,16 +1846,21 @@ fn main() {
             terminals: Mutex::new(HashMap::new()),
         })
         .invoke_handler(tauri::generate_handler![
+            apply_connection_config,
             backend_probe,
             backend_version,
             get_boot_progress,
             get_connection,
+            get_connection_config,
             get_gateway_ws_url,
             get_recent_logs,
             get_version,
             git_root,
             hermes_api,
+            oauth_login_connection_config,
+            oauth_logout_connection_config,
             open_external,
+            probe_connection_config,
             read_dir,
             read_file_data_url,
             read_file_text,
@@ -1352,12 +1868,14 @@ fn main() {
             sanitize_workspace_cwd,
             save_image_buffer,
             save_image_from_url,
+            save_connection_config,
             select_paths,
             start_backend,
             terminal_dispose,
             terminal_resize,
             terminal_start,
             terminal_write,
+            test_connection_config,
             write_clipboard,
         ])
         .plugin(tauri_plugin_clipboard_manager::init())

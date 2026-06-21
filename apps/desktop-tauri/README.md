@@ -34,6 +34,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - сохранение изображений из URL и буфера в папку загрузок;
 - TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - основной React renderer из `apps/desktop`;
+- настройки подключения gateway: local mode и remote token gateway с
+  сохранением, применением, проверкой и probe `/api/status`;
 - безопасные заглушки для функций, которые пока завязаны на Electron main
   process.
 
@@ -41,6 +43,7 @@ TypeScript-слой устанавливает совместимый `window.he
 
 - заменить оставшиеся заглушки на настоящие Tauri-команды для обновлений,
   uninstall, изображения из clipboard и расширенных desktop-событий;
+- перенести OAuth login flow для remote gateway;
 - перенести boot/progress events;
 - добавить PTY/терминал;
 - настроить Windows/Linux release workflow;
