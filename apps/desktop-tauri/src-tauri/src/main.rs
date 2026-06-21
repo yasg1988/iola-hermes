@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::Cursor;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
@@ -771,6 +772,23 @@ fn save_image_from_url(url: String) -> Result<bool, String> {
 #[tauri::command]
 fn save_image_buffer(data: Vec<u8>, ext: String) -> Result<String, String> {
     save_image_bytes(&data, &ext)
+}
+
+#[tauri::command]
+fn save_clipboard_image(app: tauri::AppHandle) -> Result<String, String> {
+    let image = app
+        .clipboard()
+        .read_image()
+        .map_err(|error| format!("В буфере обмена нет изображения: {error}"))?;
+    let rgba = image.rgba().to_vec();
+    let buffer =
+        image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(image.width(), image.height(), rgba)
+            .ok_or_else(|| "Не удалось подготовить изображение из буфера обмена.".to_string())?;
+    let mut png = Cursor::new(Vec::new());
+    buffer
+        .write_to(&mut png, image::ImageFormat::Png)
+        .map_err(|error| format!("Не удалось закодировать изображение: {error}"))?;
+    save_image_bytes(&png.into_inner(), "png")
 }
 
 #[tauri::command]
@@ -1866,6 +1884,7 @@ fn main() {
             read_file_text,
             reveal_logs,
             sanitize_workspace_cwd,
+            save_clipboard_image,
             save_image_buffer,
             save_image_from_url,
             save_connection_config,

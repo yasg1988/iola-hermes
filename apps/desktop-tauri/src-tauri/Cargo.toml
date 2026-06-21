@@ -19,6 +19,7 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
 dirs = "6"
+image = { version = "0.25", default-features = false, features = ["png"] }
 open = "5"
 portable-pty = "0.8"
 tauri-plugin-clipboard-manager = "2"

@@ -32,6 +32,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - встроенный PTY-терминал через `terminal.start/write/resize/dispose` и
   события `terminal.onData/onExit`;
 - сохранение изображений из URL и буфера в папку загрузок;
+- сохранение изображения из системного clipboard;
+- запрос доступа к микрофону через WebView media API;
 - TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - основной React renderer из `apps/desktop`;
 - настройки подключения gateway: local mode и remote token gateway с
@@ -42,7 +44,7 @@ TypeScript-слой устанавливает совместимый `window.he
 ## Что дальше
 
 - заменить оставшиеся заглушки на настоящие Tauri-команды для обновлений,
-  uninstall, изображения из clipboard и расширенных desktop-событий;
+  uninstall и расширенных desktop-событий;
 - перенести OAuth login flow для remote gateway;
 - перенести boot/progress events;
 - добавить PTY/терминал;

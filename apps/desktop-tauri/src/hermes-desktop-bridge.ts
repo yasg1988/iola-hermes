@@ -86,6 +86,19 @@ function bytesForInvoke(data: ArrayBuffer | Uint8Array): number[] {
   return Array.from(data instanceof Uint8Array ? data : new Uint8Array(data))
 }
 
+async function requestMicrophoneAccess() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return false
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream.getTracks().forEach(track => track.stop())
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function installHermesDesktopBridge() {
   const target = bridgeWindow()
   if (target.hermesDesktop) {
@@ -139,12 +152,12 @@ export function installHermesDesktopBridge() {
     readFileDataUrl: (filePath: string) => invoke('read_file_data_url', { filePath }),
     readFileText: (filePath: string) => invoke('read_file_text', { filePath }),
     repairBootstrap: async () => ok,
-    requestMicrophoneAccess: async () => false,
+    requestMicrophoneAccess,
     resetBootstrap: async () => ok,
     revalidateConnection: async () => ({ ok: true, rebuilt: false }),
     revealLogs: () => invoke('reveal_logs'),
     sanitizeWorkspaceCwd: (cwd?: null | string) => invoke('sanitize_workspace_cwd', { cwd }),
-    saveClipboardImage: unsupported('saveClipboardImage'),
+    saveClipboardImage: () => invoke('save_clipboard_image'),
     saveConnectionConfig: (payload: unknown) => invoke('save_connection_config', { payload }),
     saveImageBuffer: (data: ArrayBuffer | Uint8Array, ext: string) =>
       invoke('save_image_buffer', { data: bytesForInvoke(data), ext }),
