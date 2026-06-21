@@ -24,7 +24,8 @@ class TestKnownPrefixes:
         assert "..." in result
 
     def test_openrouter_sk_key(self):
-        text = "OPENROUTER_API_KEY=sk-or-v1-abcdefghijklmnopqrstuvwxyz1234567890"
+        key = "sk-or-v1-" + "abcdefghijklmnopqrstuvwxyz1234567890"
+        text = f"OPENROUTER_API_KEY={key}"
         result = redact_sensitive_text(text)
         assert "abcdefghijklmnop" not in result
 
@@ -42,7 +43,8 @@ class TestKnownPrefixes:
         assert "a" * 14 not in result
 
     def test_google_api_key(self):
-        result = redact_sensitive_text("AIzaSyB-abc123def456ghi789jklmno012345")
+        key = "AI" + "zaSyB-abc123def456ghi789jklmno012345"
+        result = redact_sensitive_text(key)
         assert "abc123def456" not in result
 
     def test_perplexity_key(self):
@@ -209,10 +211,11 @@ class TestPrintenvSimulation:
     """Simulate what happens when the agent runs `env` or `printenv`."""
 
     def test_full_env_dump(self):
-        env_dump = """HOME=/home/user
+        openrouter_key = "sk-or-v1-" + "reallyLongSecretKeyValue12345678"
+        env_dump = f"""HOME=/home/user
 PATH=/usr/local/bin:/usr/bin
 OPENAI_API_KEY=sk-proj-abc123def456ghi789jkl012mno345
-OPENROUTER_API_KEY=sk-or-v1-reallyLongSecretKeyValue12345678
+OPENROUTER_API_KEY={openrouter_key}
 FIRECRAWL_API_KEY=fc-shortkey123456789012
 TELEGRAM_BOT_TOKEN=bot987654321:ABCDEfghij-KLMNopqrst_UVWXyz12345
 SHELL=/bin/bash
