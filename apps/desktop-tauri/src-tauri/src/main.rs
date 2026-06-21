@@ -135,6 +135,16 @@ struct DesktopConnectionTestResult {
     version: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+struct DesktopActiveProfile {
+    profile: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+struct DesktopActiveProfileConfig {
+    profile: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DesktopOauthLoginInput {
@@ -592,6 +602,25 @@ fn apply_connection_config(
         *backend = None;
     }
     Ok(connection_config_view(&app, &config, None, Some(&state)))
+}
+
+#[tauri::command]
+fn get_active_profile(app: tauri::AppHandle) -> DesktopActiveProfile {
+    DesktopActiveProfile {
+        profile: read_active_desktop_profile(&app),
+    }
+}
+
+#[tauri::command]
+fn set_active_profile(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    name: Option<String>,
+) -> Result<DesktopActiveProfile, String> {
+    let next = write_active_desktop_profile(&app, name.as_deref())?;
+    teardown_primary_backend(&state);
+    reload_main_window(&app);
+    Ok(DesktopActiveProfile { profile: next })
 }
 
 #[tauri::command]
@@ -1919,9 +1948,11 @@ fn launch_backend(
         None,
     );
     let mut child = Command::new(&python);
+    child.args(["-m", "hermes_cli.main"]);
+    if let Some(profile) = read_active_desktop_profile(app) {
+        child.args(["--profile", &profile]);
+    }
     child.args([
-        "-m",
-        "hermes_cli.main",
         "dashboard",
         "--no-open",
         "--tui",
@@ -1973,6 +2004,40 @@ fn launch_backend(
         python: python.to_string_lossy().into_owned(),
         token,
     })
+}
+
+fn teardown_primary_backend(state: &tauri::State<'_, AppState>) {
+    let runtime = state.backend.lock().ok().and_then(|mut guard| guard.take());
+    if let Some(runtime) = runtime {
+        terminate_process(runtime.pid);
+    }
+}
+
+fn terminate_process(pid: u32) {
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+fn reload_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.eval("window.location.reload()");
+    }
 }
 
 fn find_free_port() -> u16 {
@@ -2148,12 +2213,73 @@ fn connection_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("connection.json"))
 }
 
+fn active_profile_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| format!("Не удалось определить каталог настроек: {error}"))?;
+    Ok(dir.join("active-profile.json"))
+}
+
 fn translucency_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_config_dir()
         .map_err(|error| format!("Не удалось определить каталог настроек: {error}"))?;
     Ok(dir.join("translucency.json"))
+}
+
+fn read_active_desktop_profile(app: &tauri::AppHandle) -> Option<String> {
+    let path = active_profile_config_path(app).ok()?;
+    let raw = fs::read_to_string(path).ok()?;
+    let config = serde_json::from_str::<DesktopActiveProfileConfig>(&raw).ok()?;
+    normalize_desktop_profile_name(config.profile.as_deref())
+        .ok()
+        .flatten()
+}
+
+fn write_active_desktop_profile(
+    app: &tauri::AppHandle,
+    name: Option<&str>,
+) -> Result<Option<String>, String> {
+    let profile = normalize_desktop_profile_name(name)?;
+    let path = active_profile_config_path(app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Не удалось создать каталог настроек: {error}"))?;
+    }
+    let raw = serde_json::to_string_pretty(&DesktopActiveProfileConfig {
+        profile: profile.clone(),
+    })
+    .map_err(|error| format!("Не удалось сериализовать настройки профиля: {error}"))?;
+    fs::write(path, raw)
+        .map_err(|error| format!("Не удалось сохранить настройки профиля: {error}"))?;
+    Ok(profile)
+}
+
+fn normalize_desktop_profile_name(name: Option<&str>) -> Result<Option<String>, String> {
+    let value = name.unwrap_or_default().trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+    if value == "default" || valid_profile_name(value) {
+        Ok(Some(value.to_string()))
+    } else {
+        Err(format!("Некорректное имя профиля: {value}"))
+    }
+}
+
+fn valid_profile_name(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() || bytes.len() > 64 {
+        return false;
+    }
+    if !bytes[0].is_ascii_lowercase() && !bytes[0].is_ascii_digit() {
+        return false;
+    }
+    bytes.iter().all(|byte| {
+        byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(*byte, b'_' | b'-')
+    })
 }
 
 fn default_project_dir_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -4132,6 +4258,36 @@ mod tests {
     }
 
     #[test]
+    fn validates_desktop_profile_names() {
+        assert_eq!(
+            normalize_desktop_profile_name(Some("default")).expect("default"),
+            Some("default".to_string())
+        );
+        assert_eq!(
+            normalize_desktop_profile_name(Some("team_1-prod")).expect("profile"),
+            Some("team_1-prod".to_string())
+        );
+        assert_eq!(
+            normalize_desktop_profile_name(Some(" ")).expect("empty"),
+            None
+        );
+        assert!(normalize_desktop_profile_name(Some("Bad")).is_err());
+        assert!(normalize_desktop_profile_name(Some("-bad")).is_err());
+        assert!(normalize_desktop_profile_name(Some("bad.name")).is_err());
+    }
+
+    #[test]
+    fn serializes_active_profile_config() {
+        let config = DesktopActiveProfileConfig {
+            profile: Some("default".to_string()),
+        };
+        let raw = serde_json::to_string(&config).expect("json");
+        let parsed = serde_json::from_str::<DesktopActiveProfileConfig>(&raw).expect("parsed");
+
+        assert_eq!(parsed.profile.as_deref(), Some("default"));
+    }
+
+    #[test]
     fn strips_windows_extended_path_prefix() {
         assert_eq!(
             normalize_path_string(PathBuf::from(r"\\?\C:\Users\Hermes")),
@@ -4561,6 +4717,7 @@ fn main() {
             backend_probe,
             backend_version,
             fetch_link_title,
+            get_active_profile,
             get_boot_progress,
             get_connection,
             get_connection_config,
@@ -4588,6 +4745,7 @@ fn main() {
             save_image_from_url,
             save_connection_config,
             select_paths,
+            set_active_profile,
             set_default_project_dir,
             set_native_theme,
             set_title_bar_theme,

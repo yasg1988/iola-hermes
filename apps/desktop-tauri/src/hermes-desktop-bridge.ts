@@ -325,8 +325,8 @@ export function installHermesDesktopBridge() {
     openSessionWindow: (sessionId: string, opts?: { watch?: boolean }) =>
       invoke('open_session_window', { opts, sessionId }),
     profile: {
-      get: async () => ({ profile: null }),
-      set: async (name: null | string) => ({ profile: name })
+      get: () => invoke('get_active_profile'),
+      set: (name: null | string) => invoke('set_active_profile', { name })
     },
     probeConnectionConfig: (remoteUrl: string) => invoke('probe_connection_config', { remoteUrl }),
     readDir: (path: string) => invoke('read_dir', { path }),
