@@ -45,4 +45,4 @@ jobs:
         --lockfile=package-lock.json
         --lockfile=website/package-lock.json
       fail-on-vuln: false
-      upload-sarif: false
+      upload-sarif: true
