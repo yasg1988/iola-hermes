@@ -90,9 +90,12 @@ const noopUnsubscribe: Unsubscribe = () => undefined
 const ok = { ok: true }
 
 const localEvents = new EventTarget()
+const closePreviewCallbacks = new Set<() => void>()
 const registeredNotificationActionTypes = new Set<string>()
 const notificationPayloads = new Map<number, HermesNotification>()
 let notificationActionListenerReady = false
+let previewShortcutActive = false
+let previewShortcutListenerReady = false
 
 const emptyBootState = {
   active: false,
@@ -118,6 +121,37 @@ const localConnectionConfig = {
 
 function bridgeWindow() {
   return window as unknown as { hermesDesktop?: DesktopBridge }
+}
+
+function ensurePreviewShortcutListener() {
+  if (previewShortcutListenerReady) {
+    return
+  }
+  previewShortcutListenerReady = true
+  window.addEventListener(
+    'keydown',
+    event => {
+      const key = event.key.toLowerCase()
+      const isCloseShortcut = key === 'w' && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey
+
+      if (!previewShortcutActive || !isCloseShortcut) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      for (const callback of [...closePreviewCallbacks]) {
+        callback()
+      }
+    },
+    { capture: true }
+  )
+}
+
+function onClosePreviewRequested(callback: () => void): Unsubscribe {
+  closePreviewCallbacks.add(callback)
+
+  return () => closePreviewCallbacks.delete(callback)
 }
 
 function normalizeApiRequest(request: ApiRequest): ApiRequest {
@@ -309,7 +343,7 @@ export function installHermesDesktopBridge() {
     onBackendExit: (callback: (payload: BackendExit) => void) => subscribe('hermes:backend-exit', callback),
     onBootProgress: (callback: (payload: BootProgress) => void) => subscribe('hermes:boot-progress', callback),
     onBootstrapEvent: () => noopUnsubscribe,
-    onClosePreviewRequested: () => noopUnsubscribe,
+    onClosePreviewRequested,
     onDeepLink: (callback: (payload: DeepLinkPayload) => void) => subscribe('hermes:deep-link', callback),
     onFocusSession: (callback: (sessionId: string) => void) => subscribeLocal('hermes:focus-session', callback),
     onNotificationAction: (callback: (payload: { actionId: string; sessionId?: string }) => void) =>
@@ -345,7 +379,10 @@ export function installHermesDesktopBridge() {
     saveImageFromUrl: (url: string) => invoke('save_image_from_url', { url }),
     selectPaths: (options?: unknown) => invoke('select_paths', { options }),
     setNativeTheme: (mode: 'dark' | 'light' | 'system') => void invoke('set_native_theme', { mode }),
-    setPreviewShortcutActive: () => undefined,
+    setPreviewShortcutActive: (active: boolean) => {
+      previewShortcutActive = Boolean(active)
+      ensurePreviewShortcutListener()
+    },
     setTitleBarTheme: (payload: HermesTitleBarTheme) => void invoke('set_title_bar_theme', { payload }),
     setTranslucency: (payload: { intensity: number }) => void invoke('set_translucency', { payload }),
     settings: {
