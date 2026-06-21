@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
 type Unsubscribe = () => void
 type DesktopBridge = Record<string, unknown>
@@ -9,6 +10,11 @@ interface ApiRequest {
   path: string
   profile?: null | string
   timeoutMs?: number
+}
+
+interface TerminalExit {
+  code: null | number
+  signal: null | string
 }
 
 const noopUnsubscribe: Unsubscribe = () => undefined
@@ -51,6 +57,28 @@ function normalizeApiRequest(request: ApiRequest): ApiRequest {
   return {
     ...request,
     profile: request.profile ?? undefined
+  }
+}
+
+function subscribe<T>(event: string, callback: (payload: T) => void): Unsubscribe {
+  let active = true
+  let cleanup: Unsubscribe = noopUnsubscribe
+
+  void listen<T>(event, message => {
+    if (active) {
+      callback(message.payload)
+    }
+  }).then(unlisten => {
+    if (active) {
+      cleanup = unlisten
+    } else {
+      unlisten()
+    }
+  })
+
+  return () => {
+    active = false
+    cleanup()
   }
 }
 
@@ -136,12 +164,13 @@ export function installHermesDesktopBridge() {
     signalDeepLinkReady: async () => ok,
     stopPreviewFileWatch: async () => true,
     terminal: {
-      dispose: async () => false,
-      onData: () => noopUnsubscribe,
-      onExit: () => noopUnsubscribe,
-      resize: async () => false,
-      start: unsupported('terminal.start'),
-      write: async () => false
+      dispose: (id: string) => invoke('terminal_dispose', { id }),
+      onData: (id: string, callback: (payload: string) => void) => subscribe(`hermes:terminal:${id}:data`, callback),
+      onExit: (id: string, callback: (payload: TerminalExit) => void) =>
+        subscribe(`hermes:terminal:${id}:exit`, callback),
+      resize: (id: string, size: { cols: number; rows: number }) => invoke('terminal_resize', { id, size }),
+      start: (options?: unknown) => invoke('terminal_start', { options }),
+      write: (id: string, data: string) => invoke('terminal_write', { id, data })
     },
     testConnectionConfig: async () => ({ baseUrl: '', ok: false, version: null }),
     themes: {

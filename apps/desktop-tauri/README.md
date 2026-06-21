@@ -29,6 +29,8 @@ TypeScript-слой устанавливает совместимый `window.he
   `sanitize_workspace_cwd`, `git_root`;
 - системные диалоги выбора файлов/каталогов через `select_paths`;
 - запись текста в буфер обмена через `write_clipboard`;
+- встроенный PTY-терминал через `terminal.start/write/resize/dispose` и
+  события `terminal.onData/onExit`;
 - TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - основной React renderer из `apps/desktop`;
 - безопасные заглушки для функций, которые пока завязаны на Electron main
@@ -36,8 +38,8 @@ TypeScript-слой устанавливает совместимый `window.he
 
 ## Что дальше
 
-- заменить оставшиеся заглушки на настоящие Tauri-команды для терминала,
-  обновлений и расширенных desktop-событий;
+- заменить оставшиеся заглушки на настоящие Tauri-команды для обновлений,
+  uninstall, сохранения изображений и расширенных desktop-событий;
 - перенести boot/progress events;
 - добавить PTY/терминал;
 - настроить Windows/Linux release workflow;

@@ -1,24 +1,35 @@
 use base64::Engine;
+use portable_pty::{native_pty_system, Child as PtyChild, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child as ProcessChild, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tauri::Emitter;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_dialog::DialogExt;
 
 struct AppState {
     backend: Mutex<Option<BackendRuntime>>,
+    terminals: Mutex<HashMap<String, TerminalRuntime>>,
 }
 
 struct BackendRuntime {
-    child: Child,
+    child: ProcessChild,
     port: u16,
     python: String,
     token: String,
+}
+
+struct TerminalRuntime {
+    child: Box<dyn PtyChild + Send>,
+    master: Box<dyn MasterPty + Send>,
+    writer: Box<dyn Write + Send>,
 }
 
 #[derive(Debug, Serialize)]
@@ -113,6 +124,38 @@ struct SelectPathsOptions {
     directories: Option<bool>,
     multiple: Option<bool>,
     title: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TerminalStartOptions {
+    cols: Option<u16>,
+    cwd: Option<String>,
+    rows: Option<u16>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TerminalSize {
+    cols: u16,
+    rows: u16,
+}
+
+#[derive(Debug, Serialize)]
+struct TerminalSession {
+    cwd: String,
+    id: String,
+    shell: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct TerminalExit {
+    code: Option<i32>,
+    signal: Option<String>,
+}
+
+struct ShellSpec {
+    args: Vec<String>,
+    command: String,
+    name: String,
 }
 
 #[tauri::command]
@@ -414,6 +457,156 @@ fn write_clipboard(app: tauri::AppHandle, text: String) -> Result<bool, String> 
     Ok(true)
 }
 
+#[tauri::command]
+fn terminal_start(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    options: Option<TerminalStartOptions>,
+) -> Result<TerminalSession, String> {
+    let options = options.unwrap_or(TerminalStartOptions {
+        cols: None,
+        cwd: None,
+        rows: None,
+    });
+    let cols = options.cols.unwrap_or(80).max(2);
+    let rows = options.rows.unwrap_or(24).max(2);
+    let cwd = safe_terminal_cwd(options.cwd)?;
+    let shell = terminal_shell_command()?;
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|error| format!("Не удалось создать PTY: {error}"))?;
+
+    let mut command = CommandBuilder::new(&shell.command);
+    command.args(&shell.args);
+    command.cwd(&cwd);
+    for (key, value) in terminal_shell_env() {
+        command.env(key, value);
+    }
+
+    let child = pair
+        .slave
+        .spawn_command(command)
+        .map_err(|error| format!("Не удалось запустить shell: {error}"))?;
+    drop(pair.slave);
+
+    let mut reader = pair
+        .master
+        .try_clone_reader()
+        .map_err(|error| format!("Не удалось подключить чтение PTY: {error}"))?;
+    let writer = pair
+        .master
+        .take_writer()
+        .map_err(|error| format!("Не удалось подключить запись PTY: {error}"))?;
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    let data_event = terminal_channel(&id, "data");
+    let exit_event = terminal_channel(&id, "exit");
+    let emit_app = app.clone();
+
+    std::thread::spawn(move || {
+        let mut buf = [0_u8; 8192];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                    let _ = emit_app.emit(&data_event, data);
+                }
+                Err(_) => break,
+            }
+        }
+        let _ = emit_app.emit(
+            &exit_event,
+            TerminalExit {
+                code: None,
+                signal: None,
+            },
+        );
+    });
+
+    let mut terminals = state
+        .terminals
+        .lock()
+        .map_err(|_| "Terminal state lock poisoned".to_string())?;
+    terminals.insert(
+        id.clone(),
+        TerminalRuntime {
+            child,
+            master: pair.master,
+            writer,
+        },
+    );
+
+    Ok(TerminalSession {
+        cwd: normalize_path_string(cwd),
+        id,
+        shell: shell.name,
+    })
+}
+
+#[tauri::command]
+fn terminal_write(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    data: String,
+) -> Result<bool, String> {
+    let mut terminals = state
+        .terminals
+        .lock()
+        .map_err(|_| "Terminal state lock poisoned".to_string())?;
+    let Some(session) = terminals.get_mut(&id) else {
+        return Ok(false);
+    };
+    session
+        .writer
+        .write_all(data.as_bytes())
+        .map_err(|error| format!("Не удалось записать в PTY: {error}"))?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn terminal_resize(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    size: TerminalSize,
+) -> Result<bool, String> {
+    let mut terminals = state
+        .terminals
+        .lock()
+        .map_err(|_| "Terminal state lock poisoned".to_string())?;
+    let Some(session) = terminals.get_mut(&id) else {
+        return Ok(false);
+    };
+    session
+        .master
+        .resize(PtySize {
+            rows: size.rows.max(2),
+            cols: size.cols.max(2),
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|error| format!("Не удалось изменить размер PTY: {error}"))?;
+    Ok(true)
+}
+
+#[tauri::command]
+fn terminal_dispose(state: tauri::State<'_, AppState>, id: String) -> Result<bool, String> {
+    let mut terminals = state
+        .terminals
+        .lock()
+        .map_err(|_| "Terminal state lock poisoned".to_string())?;
+    let Some(mut session) = terminals.remove(&id) else {
+        return Ok(false);
+    };
+    let _ = session.child.kill();
+    Ok(true)
+}
+
 struct BackendConnection {
     base_url: String,
     pid: u32,
@@ -587,7 +780,7 @@ fn find_free_port() -> u16 {
 }
 
 fn wait_for_backend_ready(
-    child: &mut Child,
+    child: &mut ProcessChild,
     port: u16,
     token: &str,
     timeout: Duration,
@@ -799,10 +992,164 @@ fn language_for_path(path: &Path) -> Option<String> {
     Some(language.to_string())
 }
 
+fn terminal_channel(id: &str, suffix: &str) -> String {
+    format!("hermes:terminal:{id}:{suffix}")
+}
+
+fn safe_terminal_cwd(cwd: Option<String>) -> Result<PathBuf, String> {
+    let fallback = home_dir()
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let candidate = cwd
+        .filter(|value| !value.trim().is_empty())
+        .map(PathBuf::from)
+        .unwrap_or(fallback.clone());
+
+    if candidate.is_dir() {
+        return Ok(canonical_or_self(candidate));
+    }
+
+    if candidate.is_file() {
+        if let Some(parent) = candidate.parent() {
+            return Ok(canonical_or_self(parent.to_path_buf()));
+        }
+    }
+
+    Ok(canonical_or_self(fallback))
+}
+
+fn terminal_shell_command() -> Result<ShellSpec, String> {
+    let override_shell = env::var("HERMES_DESKTOP_SHELL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            if cfg!(windows) {
+                None
+            } else {
+                env::var("SHELL")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            }
+        });
+
+    if let Some(shell) = override_shell {
+        let path = PathBuf::from(&shell);
+        let resolved = if path.is_file() {
+            Some(path)
+        } else {
+            find_on_path(&shell)
+        };
+        if let Some(path) = resolved {
+            return Ok(shell_spec_for(path));
+        }
+    }
+
+    if cfg!(windows) {
+        let command = find_on_path("pwsh.exe")
+            .or_else(|| find_on_path("pwsh"))
+            .or_else(windows_powershell_path)
+            .or_else(|| env::var("COMSPEC").ok().map(PathBuf::from))
+            .unwrap_or_else(|| PathBuf::from("cmd.exe"));
+        return Ok(shell_spec_for(command));
+    }
+
+    for candidate in ["/bin/zsh", "/bin/bash", "/bin/sh"] {
+        let path = PathBuf::from(candidate);
+        if path.is_file() {
+            return Ok(shell_spec_for(path));
+        }
+    }
+
+    Ok(shell_spec_for(PathBuf::from("/bin/sh")))
+}
+
+fn shell_spec_for(path: PathBuf) -> ShellSpec {
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("shell")
+        .to_lowercase();
+    let command = path.to_string_lossy().to_string();
+    let args = if name.starts_with("pwsh") || name.starts_with("powershell") {
+        vec!["-NoLogo".to_string()]
+    } else {
+        Vec::new()
+    };
+
+    ShellSpec {
+        args,
+        command,
+        name,
+    }
+}
+
+fn terminal_shell_env() -> Vec<(String, String)> {
+    let mut envs = Vec::new();
+    for (key, value) in env::vars() {
+        if key == "npm_config_prefix"
+            || key.starts_with("npm_config_")
+            || key.starts_with("npm_package_")
+        {
+            continue;
+        }
+        if matches!(key.as_str(), "NO_COLOR" | "FORCE_COLOR" | "COLORFGBG") {
+            continue;
+        }
+        envs.push((key, value));
+    }
+
+    upsert_env(&mut envs, "COLORTERM", "truecolor");
+    upsert_env(&mut envs, "LC_CTYPE", "UTF-8");
+    upsert_env(&mut envs, "TERM", "xterm-256color");
+    upsert_env(&mut envs, "TERM_PROGRAM", "Hermes");
+    upsert_env(&mut envs, "TERM_PROGRAM_VERSION", env!("CARGO_PKG_VERSION"));
+    upsert_env(&mut envs, "HERMES_DESKTOP_TERMINAL", "1");
+    envs
+}
+
+fn upsert_env(envs: &mut Vec<(String, String)>, key: &str, value: &str) {
+    if let Some((_, existing)) = envs.iter_mut().find(|(candidate, _)| candidate == key) {
+        if existing.is_empty() || key != "LC_CTYPE" {
+            *existing = value.to_string();
+        }
+    } else {
+        envs.push((key.to_string(), value.to_string()));
+    }
+}
+
+fn home_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        env::var_os("USERPROFILE").map(PathBuf::from)
+    } else {
+        env::var_os("HOME").map(PathBuf::from)
+    }
+}
+
+#[cfg(windows)]
+fn windows_powershell_path() -> Option<PathBuf> {
+    let windir = env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
+    let path = PathBuf::from(windir)
+        .join("System32")
+        .join("WindowsPowerShell")
+        .join("v1.0")
+        .join("powershell.exe");
+    if path.is_file() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(windows))]
+fn windows_powershell_path() -> Option<PathBuf> {
+    None
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(AppState {
             backend: Mutex::new(None),
+            terminals: Mutex::new(HashMap::new()),
         })
         .invoke_handler(tauri::generate_handler![
             backend_probe,
@@ -820,6 +1167,10 @@ fn main() {
             sanitize_workspace_cwd,
             select_paths,
             start_backend,
+            terminal_dispose,
+            terminal_resize,
+            terminal_start,
+            terminal_write,
             write_clipboard,
         ])
         .plugin(tauri_plugin_clipboard_manager::init())
