@@ -328,6 +328,21 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
         message: result.command ?? 'hermes update',
         command: result.command ?? 'hermes update'
       })
+
+      return result
+    }
+
+    if (result && !result.ok) {
+      const message = result.message || translateNow('updates.applyStatus.failed')
+      $updateApply.set({ ...$updateApply.get(), applying: false, stage: 'error', error: result.error || 'apply-failed', message })
+
+      return result
+    }
+
+    if (result?.ok) {
+      $updateApply.set({ ...IDLE, message: result.message || '' })
+      void checkUpdates()
+      void refreshDesktopVersion()
     }
 
     return result

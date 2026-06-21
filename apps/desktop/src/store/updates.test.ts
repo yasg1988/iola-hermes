@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DesktopUpdateStatus } from '@/global'
+import type { DesktopUpdateApplyResult, DesktopUpdateStatus } from '@/global'
 
 const storage = new Map<string, string>()
 
@@ -41,7 +41,17 @@ vi.mock('@/hermes', () => ({
   getActionStatus: (...args: unknown[]) => getActionStatusSpy(...args)
 }))
 
-const { maybeNotifyUpdateAvailable, checkBackendUpdates, $backendUpdateStatus, applyBackendUpdate, $backendUpdateApply, reportBackendContract } = await import('./updates')
+const {
+  maybeNotifyUpdateAvailable,
+  checkBackendUpdates,
+  $backendUpdateStatus,
+  applyBackendUpdate,
+  $backendUpdateApply,
+  applyUpdates,
+  $updateApply,
+  $updateStatus,
+  reportBackendContract
+} = await import('./updates')
 const { setConnection } = await import('./session')
 
 const status = (over: Partial<DesktopUpdateStatus> = {}): DesktopUpdateStatus => ({
@@ -215,6 +225,51 @@ describe('checkBackendUpdates', () => {
     setRemote(false)
     await checkBackendUpdates()
     expect(checkHermesUpdateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('applyUpdates', () => {
+  const setDesktopUpdateBridge = (result: DesktopUpdateApplyResult) => {
+    Object.defineProperty(window, 'hermesDesktop', {
+      configurable: true,
+      value: {
+        getVersion: vi.fn().mockResolvedValue(null),
+        updates: {
+          apply: vi.fn().mockResolvedValue(result),
+          check: vi.fn().mockResolvedValue(status({ behind: 0 })),
+          onProgress: vi.fn()
+        }
+      }
+    })
+  }
+
+  beforeEach(() => {
+    dismissSpy.mockClear()
+    $updateApply.set({ applying: false, stage: 'idle', message: '', percent: null, error: null, command: null, log: [] })
+    $updateStatus.set(null)
+  })
+
+  it('clears the applying state when the client updater reports that no work was needed', async () => {
+    setDesktopUpdateBridge({ ok: true, message: 'Установленная версия уже актуальна.' })
+
+    const result = await applyUpdates()
+
+    expect(result.ok).toBe(true)
+    expect($updateApply.get().applying).toBe(false)
+    expect($updateApply.get().stage).toBe('idle')
+    expect($updateApply.get().message).toBe('Установленная версия уже актуальна.')
+  })
+
+  it('surfaces non-throwing client updater failures as an error state', async () => {
+    setDesktopUpdateBridge({ ok: false, error: 'not-supported', message: 'Обновление недоступно.' })
+
+    const result = await applyUpdates()
+
+    expect(result.ok).toBe(false)
+    expect($updateApply.get().applying).toBe(false)
+    expect($updateApply.get().stage).toBe('error')
+    expect($updateApply.get().error).toBe('not-supported')
+    expect($updateApply.get().message).toBe('Обновление недоступно.')
   })
 })
 
