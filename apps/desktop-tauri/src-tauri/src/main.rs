@@ -3282,9 +3282,9 @@ fn select_packaged_update_asset(assets: &[GitHubReleaseAsset]) -> Option<Package
 fn platform_asset_matches(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
     if cfg!(windows) {
-        lower.ends_with(".exe") && !lower.ends_with(".exe.blockmap") && lower.contains("win")
+        lower.ends_with(".exe") && !lower.ends_with(".exe.blockmap")
     } else if cfg!(target_os = "linux") {
-        lower.ends_with(".appimage") && lower.contains("linux")
+        lower.ends_with(".appimage")
     } else {
         false
     }
@@ -3341,6 +3341,53 @@ fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
         }
     }
     std::cmp::Ordering::Equal
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_tauri_release_asset_versions() {
+        assert_eq!(
+            release_asset_version("Hermes RU Iola_0.17.2_x64-setup.exe").as_deref(),
+            Some("0.17.2")
+        );
+        assert_eq!(
+            release_asset_version("Hermes RU Iola_0.17.2_amd64.AppImage").as_deref(),
+            Some("0.17.2")
+        );
+        assert_eq!(
+            release_asset_version("Hermes RU Iola-0.17.2-1.x86_64.rpm").as_deref(),
+            Some("0.17.2")
+        );
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn matches_real_windows_tauri_installer_names() {
+        assert!(platform_asset_matches(
+            "Hermes RU Iola_0.17.2_x64-setup.exe"
+        ));
+        assert!(!platform_asset_matches(
+            "Hermes RU Iola_0.17.2_x64_en-US.msi"
+        ));
+        assert!(!platform_asset_matches(
+            "Hermes RU Iola_0.17.2_x64-setup.exe.blockmap"
+        ));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn matches_real_linux_tauri_appimage_names() {
+        assert!(platform_asset_matches(
+            "Hermes RU Iola_0.17.2_amd64.AppImage"
+        ));
+        assert!(!platform_asset_matches("Hermes RU Iola_0.17.2_amd64.deb"));
+        assert!(!platform_asset_matches(
+            "Hermes RU Iola-0.17.2-1.x86_64.rpm"
+        ));
+    }
 }
 
 fn version_parts(value: &str) -> Vec<u64> {
