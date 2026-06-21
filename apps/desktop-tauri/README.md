@@ -23,7 +23,7 @@ assets `Hermes-RU-Iola-Tauri-*`:
 
 На текущем этапе Tauri-приложение собирает основной React UI из `apps/desktop`.
 Rust-часть поднимает локальный `hermes dashboard`, держит session token, отдает
-`getConnection`/`getGatewayWsUrl` и проксирует REST-запросы через `hermes_api`.
+`getConnection`/`getGatewayWsUrl` и выполняет REST-запросы через `hermes_api`.
 TypeScript-слой устанавливает совместимый `window.hermesDesktop`.
 
 ## Что уже есть
@@ -35,6 +35,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - команды `open_external`, `read_file_text`, `read_file_data_url`, `read_dir`,
   `sanitize_workspace_cwd`, `git_root`;
 - системные диалоги выбора файлов/каталогов через `select_paths`;
+- сохранение каталога проектов по умолчанию через системный диалог и ручной
+  ввод пути;
 - запись текста в буфер обмена через `write_clipboard`;
 - встроенный PTY-терминал через `terminal.start/write/resize/dispose` и
   события `terminal.onData/onExit`;
@@ -58,6 +60,8 @@ TypeScript-слой устанавливает совместимый `window.he
   `ws-ticket` для WebSocket-подключения;
 - события запуска локального backend через `onBootProgress`;
 - событие завершения локального backend через `onBackendExit`;
+- сохранение активного профиля, переключение профиля из интерфейса и запуск
+  локального backend с выбранным профилем;
 - синхронизация native theme и события состояния окна через
   `setNativeTheme`/`onWindowStateChanged`;
 - runtime-настройка цвета заголовка и фона через стабильный Tauri API,
@@ -65,6 +69,11 @@ TypeScript-слой устанавливает совместимый `window.he
   для совместимости настроек;
 - обработка `hermes://` deep links через `onDeepLink` и очередь до
   `signalDeepLinkReady`;
+- получение заголовков страниц для ссылок с ограничением сетевого доступа и
+  размера ответа;
+- определение git worktree/ветки для локальных рабочих каталогов;
+- нормализация целей предпросмотра: локальные URL, файлы, каталоги с
+  `index.html`, MIME-тип, размер и тип предпросмотра;
 - отслеживание изменений локальных файлов предпросмотра через
   `watchPreviewFile`/`onPreviewFileChanged`;
 - нативные desktop-уведомления через Tauri notification plugin, permission
