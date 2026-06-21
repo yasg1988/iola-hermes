@@ -290,7 +290,7 @@ export function installHermesDesktopBridge() {
     api: <T>(request: ApiRequest) => invoke<T>('hermes_api', { request: normalizeApiRequest(request) }),
     applyConnectionConfig: (payload: unknown) => invoke('apply_connection_config', { payload }),
     cancelBootstrap: async () => ({ cancelled: false, ok: true }),
-    fetchLinkTitle: async (url: string) => url,
+    fetchLinkTitle: (url: string) => invoke('fetch_link_title', { url }),
     getBootProgress: () => invoke('get_boot_progress'),
     getBootstrapState: async () => emptyBootState,
     getConnection: (profile?: null | string) => invoke('get_connection', { profile }),

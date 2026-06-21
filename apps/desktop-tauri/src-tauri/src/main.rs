@@ -8,7 +8,7 @@ use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::net::{IpAddr, TcpListener};
 use std::path::{Path, PathBuf};
 use std::process::{Child as ProcessChild, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -21,6 +21,11 @@ use tauri::{
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::DialogExt;
+
+const LINK_TITLE_BYTE_BUDGET: usize = 96 * 1024;
+const LINK_TITLE_TIMEOUT: Duration = Duration::from_secs(5);
+const LINK_TITLE_USER_AGENT: &str =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 
 struct AppState {
     backend: Arc<Mutex<Option<BackendRuntime>>>,
@@ -924,6 +929,39 @@ fn updates_apply(app: tauri::AppHandle, opts: Option<UpdateApplyOptions>) -> ser
 #[tauri::command]
 fn open_external(url: String) -> Result<(), String> {
     open::that(url).map_err(|error| format!("Не удалось открыть внешнюю ссылку: {error}"))
+}
+
+#[tauri::command]
+fn fetch_link_title(url: String) -> Result<String, String> {
+    let parsed = parse_fetchable_link_title_url(&url)?;
+    let client = reqwest::blocking::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(3))
+        .timeout(LINK_TITLE_TIMEOUT)
+        .user_agent(LINK_TITLE_USER_AGENT)
+        .build()
+        .map_err(|error| format!("Не удалось создать HTTP-клиент: {error}"))?;
+    let mut response = client
+        .get(parsed)
+        .header(
+            reqwest::header::ACCEPT,
+            "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
+        )
+        .header(reqwest::header::ACCEPT_LANGUAGE, "ru-RU,ru;q=0.9,en;q=0.6")
+        .header(reqwest::header::ACCEPT_ENCODING, "identity")
+        .send()
+        .map_err(|error| format!("Не удалось получить страницу: {error}"))?;
+    if !response.status().is_success() {
+        return Ok(String::new());
+    }
+
+    let mut bytes = Vec::with_capacity(16 * 1024);
+    let mut limited = response.by_ref().take(LINK_TITLE_BYTE_BUDGET as u64);
+    limited
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Не удалось прочитать страницу: {error}"))?;
+    Ok(usable_link_title(&parse_html_title(
+        &String::from_utf8_lossy(&bytes),
+    )))
 }
 
 #[tauri::command]
@@ -2011,6 +2049,136 @@ fn apply_title_bar_theme(window: &WebviewWindow, background: Color) -> Result<()
     window
         .set_background_color(Some(background))
         .map_err(|error| format!("Не удалось применить цвет окна: {error}"))
+}
+
+fn parse_fetchable_link_title_url(raw_url: &str) -> Result<reqwest::Url, String> {
+    let parsed = reqwest::Url::parse(raw_url.trim())
+        .map_err(|_| "Некорректная внешняя ссылка".to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("Поддерживаются только http/https ссылки".to_string());
+    }
+    let host = parsed
+        .host_str()
+        .unwrap_or_default()
+        .trim_matches(|ch| ch == '[' || ch == ']')
+        .to_ascii_lowercase();
+    if host == "localhost" {
+        return Err("Локальные ссылки не запрашиваются для предпросмотра".to_string());
+    }
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        if is_private_link_title_ip(ip) {
+            return Err("Локальные ссылки не запрашиваются для предпросмотра".to_string());
+        }
+    }
+    Ok(parsed)
+}
+
+fn is_private_link_title_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(value) => {
+            value.is_loopback()
+                || value.is_private()
+                || value.is_link_local()
+                || value.is_broadcast()
+                || value.is_documentation()
+                || value.is_unspecified()
+        }
+        IpAddr::V6(value) => {
+            value.is_loopback()
+                || value.is_unspecified()
+                || value.is_unique_local()
+                || value.is_unicast_link_local()
+        }
+    }
+}
+
+fn parse_html_title(html: &str) -> String {
+    let lower = html.to_lowercase();
+    let Some(start) = lower.find("<title") else {
+        return String::new();
+    };
+    let after_open = &html[start..];
+    let Some(open_end) = after_open.find('>') else {
+        return String::new();
+    };
+    let content_start = start + open_end + 1;
+    let Some(close_offset) = lower[content_start..].find("</title>") else {
+        return String::new();
+    };
+    decode_html_entities(&html[content_start..content_start + close_offset])
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn decode_html_entities(value: &str) -> String {
+    let chars = value.chars().collect::<Vec<_>>();
+    let mut output = String::with_capacity(value.len());
+    let mut index = 0;
+    while index < chars.len() {
+        if chars[index] != '&' {
+            output.push(chars[index]);
+            index += 1;
+            continue;
+        }
+        let Some(relative_end) = chars[index + 1..].iter().position(|ch| *ch == ';') else {
+            output.push(chars[index]);
+            index += 1;
+            continue;
+        };
+        let end = index + 1 + relative_end;
+        let entity = chars[index + 1..end].iter().collect::<String>();
+        if let Some(decoded) = decode_html_entity(&entity) {
+            output.push(decoded);
+            index = end + 1;
+        } else {
+            output.push(chars[index]);
+            index += 1;
+        }
+    }
+    output
+}
+
+fn decode_html_entity(entity: &str) -> Option<char> {
+    match entity.to_ascii_lowercase().as_str() {
+        "amp" => Some('&'),
+        "apos" | "#39" => Some('\''),
+        "gt" => Some('>'),
+        "lt" => Some('<'),
+        "nbsp" => Some(' '),
+        "quot" => Some('"'),
+        value if value.starts_with("#x") => u32::from_str_radix(&value[2..], 16)
+            .ok()
+            .and_then(char::from_u32),
+        value if value.starts_with('#') => value[1..].parse::<u32>().ok().and_then(char::from_u32),
+        _ => None,
+    }
+}
+
+fn usable_link_title(value: &str) -> String {
+    let cleaned = value
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(240)
+        .collect::<String>();
+    let lower = cleaned.to_lowercase();
+    let blocked = [
+        "access denied",
+        "attention required",
+        "captcha",
+        "error",
+        "forbidden",
+        "just a moment",
+        "request blocked",
+        "too many requests",
+    ];
+    if blocked.iter().any(|marker| lower.contains(marker)) {
+        String::new()
+    } else {
+        cleaned
+    }
 }
 
 fn write_translucency_config(app: &tauri::AppHandle, intensity: u8) -> Result<(), String> {
@@ -3446,6 +3614,34 @@ mod tests {
     }
 
     #[test]
+    fn parses_html_title_with_entities() {
+        let html = r#"
+            <!doctype html>
+            <html><head><title> Hermes &amp; Iola &#x2014; тест&nbsp;страницы </title></head></html>
+        "#;
+
+        assert_eq!(parse_html_title(html), "Hermes & Iola — тест страницы");
+    }
+
+    #[test]
+    fn filters_unusable_link_titles() {
+        assert_eq!(usable_link_title("Just a moment..."), "");
+        assert_eq!(
+            usable_link_title(" Нормальный   заголовок "),
+            "Нормальный заголовок"
+        );
+    }
+
+    #[test]
+    fn rejects_non_fetchable_link_title_urls() {
+        assert!(parse_fetchable_link_title_url("file:///tmp/test.html").is_err());
+        assert!(parse_fetchable_link_title_url("http://localhost:3000").is_err());
+        assert!(parse_fetchable_link_title_url("http://192.168.1.10").is_err());
+        assert!(parse_fetchable_link_title_url("http://[::1]:3000").is_err());
+        assert!(parse_fetchable_link_title_url("https://example.com/path").is_ok());
+    }
+
+    #[test]
     fn parses_tauri_release_asset_versions() {
         assert_eq!(
             release_asset_version("Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe").as_deref(),
@@ -3797,6 +3993,7 @@ fn main() {
             apply_connection_config,
             backend_probe,
             backend_version,
+            fetch_link_title,
             get_boot_progress,
             get_connection,
             get_connection_config,
