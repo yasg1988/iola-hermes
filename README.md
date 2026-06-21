@@ -12,6 +12,7 @@
   <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/lint.yml"><img alt="Lint" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/lint.yml?branch=main&label=lint"></a>
   <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/typecheck.yml"><img alt="Typecheck" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/typecheck.yml?branch=main&label=typecheck"></a>
   <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/desktop-release.yml"><img alt="Desktop release" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/desktop-release.yml?label=desktop"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/tauri-desktop-release.yml"><img alt="Tauri desktop release" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/tauri-desktop-release.yml?label=tauri"></a>
   <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/docker-publish.yml"><img alt="Docker" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/docker-publish.yml?branch=main&label=docker"></a>
   <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/deploy-site.yml"><img alt="Docs" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/deploy-site.yml?label=docs"></a>
   <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/osv-scanner.yml"><img alt="OSV Scanner" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/osv-scanner.yml?branch=main&label=OSV"></a>
@@ -98,6 +99,8 @@ Tauri-оболочка на Rust. Она уже собирает основно�
 запускает локальный backend через Tauri-мост, но пока не заменяет
 Electron-релиз: часть системных функций еще переносится с Electron main
 process. Запуск проверки: `npm run tauri:check`.
+Сборка Tauri-артефактов Windows/Linux настроена в workflow
+`tauri-desktop-release.yml`.
 
 ## Русификация
 

@@ -1,0 +1,109 @@
+name: Tauri Desktop Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing GitHub Release tag to attach artifacts to, for example v2026.6.21"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows Tauri desktop
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows Tauri installers
+        run: npm run --workspace apps/desktop-tauri build -- --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows Tauri artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tauri-desktop-windows
+          path: |
+            apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+
+      - name: Attach to GitHub Release
+        if: github.event_name == 'release' || github.event.inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
+        shell: pwsh
+        run: |
+          Get-ChildItem apps/desktop-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle -Recurse -File |
+            Where-Object { $_.Extension -in ".exe", ".msi" } |
+            ForEach-Object {
+              gh release upload "$env:RELEASE_TAG" $_.FullName --repo "$env:GITHUB_REPOSITORY" --clobber
+            }
+
+  build-linux:
+    name: Build Linux Tauri desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Linux Tauri packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            dpkg-dev \
+            fakeroot \
+            file \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            rpm \
+            wget
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Linux Tauri packages
+        run: npm run --workspace apps/desktop-tauri build -- --target x86_64-unknown-linux-gnu
+
+      - name: Upload Linux Tauri artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tauri-desktop-linux
+          path: |
+            apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+            apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+            apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
+
+      - name: Attach to GitHub Release
+        if: github.event_name == 'release' || github.event.inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag }}
+        run: |
+          find apps/desktop-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -type f \
+            \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
+            -print0 |
+            xargs -0 --no-run-if-empty gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber
