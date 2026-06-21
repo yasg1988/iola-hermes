@@ -1,5 +1,7 @@
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::fs;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -68,6 +70,38 @@ struct BootProgress {
     progress: u8,
     running: bool,
     timestamp: u128,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReadFileTextResult {
+    binary: bool,
+    byte_size: u64,
+    language: Option<String>,
+    mime_type: String,
+    path: String,
+    text: String,
+    truncated: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReadDirEntry {
+    is_directory: bool,
+    name: String,
+    path: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ReadDirResult {
+    entries: Vec<ReadDirEntry>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SanitizedCwd {
+    cwd: String,
+    sanitized: bool,
 }
 
 #[tauri::command]
@@ -189,6 +223,137 @@ fn get_version() -> serde_json::Value {
         "nodeVersion": null,
         "runtime": "tauri"
     })
+}
+
+#[tauri::command]
+fn open_external(url: String) -> Result<(), String> {
+    open::that(url).map_err(|error| format!("Не удалось открыть внешнюю ссылку: {error}"))
+}
+
+#[tauri::command]
+fn read_file_text(file_path: String) -> Result<ReadFileTextResult, String> {
+    let path = PathBuf::from(&file_path);
+    let bytes = fs::read(&path).map_err(|error| format!("Не удалось прочитать файл: {error}"))?;
+    let byte_size = bytes.len() as u64;
+    let binary = bytes.iter().take(8192).any(|byte| *byte == 0);
+    let truncated = bytes.len() > 1_000_000;
+    let sample = if truncated {
+        &bytes[..1_000_000]
+    } else {
+        bytes.as_slice()
+    };
+    let text = if binary {
+        String::new()
+    } else {
+        String::from_utf8_lossy(sample).to_string()
+    };
+
+    Ok(ReadFileTextResult {
+        binary,
+        byte_size,
+        language: language_for_path(&path),
+        mime_type: mime_for_path(&path).to_string(),
+        path: normalize_path_string(path),
+        text,
+        truncated,
+    })
+}
+
+#[tauri::command]
+fn read_file_data_url(file_path: String) -> Result<String, String> {
+    let path = PathBuf::from(&file_path);
+    let bytes = fs::read(&path).map_err(|error| format!("Не удалось прочитать файл: {error}"))?;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+    Ok(format!("data:{};base64,{encoded}", mime_for_path(&path)))
+}
+
+#[tauri::command]
+fn read_dir(path: String) -> ReadDirResult {
+    let dir = PathBuf::from(path);
+    let entries = match fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(error) => {
+            return ReadDirResult {
+                entries: Vec::new(),
+                error: Some(error.kind().to_string()),
+            }
+        }
+    };
+    let mut result = Vec::new();
+    for entry in entries.flatten() {
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(_) => continue,
+        };
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.is_empty() {
+            continue;
+        }
+        result.push(ReadDirEntry {
+            is_directory: file_type.is_dir(),
+            name,
+            path: normalize_path_string(entry.path()),
+        });
+    }
+    result.sort_by(|a, b| {
+        b.is_directory
+            .cmp(&a.is_directory)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    ReadDirResult {
+        entries: result,
+        error: None,
+    }
+}
+
+#[tauri::command]
+fn sanitize_workspace_cwd(cwd: Option<String>) -> Result<SanitizedCwd, String> {
+    let requested = match cwd.filter(|value| !value.trim().is_empty()) {
+        Some(value) => PathBuf::from(value),
+        None => {
+            env::current_dir().map_err(|error| format!("Не удалось определить каталог: {error}"))?
+        }
+    };
+
+    if requested.is_dir() {
+        return Ok(SanitizedCwd {
+            cwd: normalize_path_string(canonical_or_self(requested)),
+            sanitized: false,
+        });
+    }
+
+    for ancestor in requested.ancestors().skip(1) {
+        if ancestor.is_dir() {
+            return Ok(SanitizedCwd {
+                cwd: normalize_path_string(canonical_or_self(ancestor.to_path_buf())),
+                sanitized: true,
+            });
+        }
+    }
+
+    let fallback =
+        env::current_dir().map_err(|error| format!("Не удалось определить каталог: {error}"))?;
+    Ok(SanitizedCwd {
+        cwd: normalize_path_string(canonical_or_self(fallback)),
+        sanitized: true,
+    })
+}
+
+#[tauri::command]
+fn git_root(path: String) -> Option<String> {
+    let start = PathBuf::from(path);
+    let base = if start.is_file() {
+        start.parent().map(Path::to_path_buf)?
+    } else {
+        start
+    };
+
+    for candidate in base.ancestors() {
+        if candidate.join(".git").exists() {
+            return Some(normalize_path_string(candidate.to_path_buf()));
+        }
+    }
+    None
 }
 
 struct BackendConnection {
@@ -521,6 +686,61 @@ fn command_error(label: &str, output: &std::process::Output) -> String {
     }
 }
 
+fn canonical_or_self(path: PathBuf) -> PathBuf {
+    path.canonicalize().unwrap_or(path)
+}
+
+fn normalize_path_string(path: PathBuf) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn mime_for_path(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_lowercase())
+        .as_deref()
+    {
+        Some("css") => "text/css",
+        Some("gif") => "image/gif",
+        Some("html") | Some("htm") => "text/html",
+        Some("jpeg") | Some("jpg") => "image/jpeg",
+        Some("js") | Some("mjs") | Some("cjs") => "text/javascript",
+        Some("json") => "application/json",
+        Some("md") | Some("markdown") => "text/markdown",
+        Some("pdf") => "application/pdf",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("txt") | Some("log") => "text/plain",
+        Some("webp") => "image/webp",
+        Some("xml") => "application/xml",
+        _ => "application/octet-stream",
+    }
+}
+
+fn language_for_path(path: &Path) -> Option<String> {
+    let language = match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_lowercase())
+        .as_deref()
+    {
+        Some("css") => "css",
+        Some("html") | Some("htm") => "html",
+        Some("js") | Some("mjs") | Some("cjs") => "javascript",
+        Some("json") => "json",
+        Some("md") | Some("markdown") => "markdown",
+        Some("py") => "python",
+        Some("rs") => "rust",
+        Some("ts") => "typescript",
+        Some("tsx") => "tsx",
+        Some("xml") => "xml",
+        Some("yaml") | Some("yml") => "yaml",
+        _ => return None,
+    };
+    Some(language.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(AppState {
@@ -533,7 +753,13 @@ fn main() {
             get_connection,
             get_gateway_ws_url,
             get_version,
+            git_root,
             hermes_api,
+            open_external,
+            read_dir,
+            read_file_data_url,
+            read_file_text,
+            sanitize_workspace_cwd,
             start_backend
         ])
         .run(tauri::generate_context!())

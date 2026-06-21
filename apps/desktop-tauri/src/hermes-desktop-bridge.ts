@@ -74,7 +74,7 @@ export function installHermesDesktopBridge() {
     getRecentLogs: async () => ({ lines: [], path: '' }),
     getRemoteDisplayReason: async () => null,
     getVersion: () => invoke('get_version'),
-    gitRoot: async () => null,
+    gitRoot: (path: string) => invoke('git_root', { path }),
     normalizePreviewTarget: async (targetPath: string) => ({
       kind: /^https?:\/\//i.test(targetPath) ? 'url' : 'file',
       label: targetPath,
@@ -95,9 +95,7 @@ export function installHermesDesktopBridge() {
     onPowerResume: () => noopUnsubscribe,
     onPreviewFileChanged: () => noopUnsubscribe,
     onWindowStateChanged: () => noopUnsubscribe,
-    openExternal: async (url: string) => {
-      window.open(url, '_blank', 'noopener,noreferrer')
-    },
+    openExternal: (url: string) => invoke('open_external', { url }),
     openNewSessionWindow: async () => ok,
     openSessionWindow: async () => ok,
     profile: {
@@ -112,15 +110,15 @@ export function installHermesDesktopBridge() {
       reachable: false,
       version: null
     }),
-    readDir: async () => ({ entries: [], error: 'Чтение каталогов пока не реализовано в Tauri-оболочке' }),
-    readFileDataUrl: unsupported('readFileDataUrl'),
-    readFileText: unsupported('readFileText'),
+    readDir: (path: string) => invoke('read_dir', { path }),
+    readFileDataUrl: (filePath: string) => invoke('read_file_data_url', { filePath }),
+    readFileText: (filePath: string) => invoke('read_file_text', { filePath }),
     repairBootstrap: async () => ok,
     requestMicrophoneAccess: async () => false,
     resetBootstrap: async () => ok,
     revalidateConnection: async () => ({ ok: true, rebuilt: false }),
     revealLogs: async () => ({ error: 'Логи Tauri пока не подключены', ok: false, path: '' }),
-    sanitizeWorkspaceCwd: async (cwd?: null | string) => ({ cwd: cwd ?? '', sanitized: false }),
+    sanitizeWorkspaceCwd: (cwd?: null | string) => invoke('sanitize_workspace_cwd', { cwd }),
     saveClipboardImage: unsupported('saveClipboardImage'),
     saveConnectionConfig: async () => localConnectionConfig,
     saveImageBuffer: unsupported('saveImageBuffer'),

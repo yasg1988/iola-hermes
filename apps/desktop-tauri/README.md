@@ -25,6 +25,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - отдельный Rust crate `src-tauri`;
 - команды `backend_probe`, `backend_version`, `start_backend`;
 - команды `get_connection`, `get_gateway_ws_url`, `hermes_api`;
+- команды `open_external`, `read_file_text`, `read_file_data_url`, `read_dir`,
+  `sanitize_workspace_cwd`, `git_root`;
 - TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - основной React renderer из `apps/desktop`;
 - безопасные заглушки для функций, которые пока завязаны на Electron main
@@ -32,8 +34,8 @@ TypeScript-слой устанавливает совместимый `window.he
 
 ## Что дальше
 
-- заменить заглушки на настоящие Tauri-команды для файлов, терминала,
-  открытия внешних ссылок и системных диалогов;
+- заменить оставшиеся заглушки на настоящие Tauri-команды для системных
+  диалогов, clipboard, терминала и обновлений;
 - перенести boot/progress events;
 - добавить PTY/терминал;
 - настроить Windows/Linux release workflow;
