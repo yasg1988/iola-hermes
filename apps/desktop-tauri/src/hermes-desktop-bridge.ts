@@ -43,6 +43,12 @@ interface HermesWindowState {
   windowButtonPosition: null | { x: number; y: number }
 }
 
+interface DeepLinkPayload {
+  kind: string
+  name: string
+  params: Record<string, string>
+}
+
 interface OauthLoginResult {
   baseUrl: string
   connected: boolean
@@ -177,7 +183,7 @@ export function installHermesDesktopBridge() {
     onBootProgress: (callback: (payload: BootProgress) => void) => subscribe('hermes:boot-progress', callback),
     onBootstrapEvent: () => noopUnsubscribe,
     onClosePreviewRequested: () => noopUnsubscribe,
-    onDeepLink: () => noopUnsubscribe,
+    onDeepLink: (callback: (payload: DeepLinkPayload) => void) => subscribe('hermes:deep-link', callback),
     onFocusSession: () => noopUnsubscribe,
     onNotificationAction: () => noopUnsubscribe,
     onOpenUpdatesRequested: () => noopUnsubscribe,
@@ -217,7 +223,7 @@ export function installHermesDesktopBridge() {
       pickDefaultProjectDir: async () => ({ canceled: true, dir: null }),
       setDefaultProjectDir: async (dir: null | string) => ({ dir })
     },
-    signalDeepLinkReady: async () => ok,
+    signalDeepLinkReady: () => invoke('signal_deep_link_ready'),
     stopPreviewFileWatch: async () => true,
     terminal: {
       dispose: (id: string) => invoke('terminal_dispose', { id }),

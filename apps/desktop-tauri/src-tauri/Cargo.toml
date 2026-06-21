@@ -22,5 +22,8 @@ dirs = "6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 open = "5"
 portable-pty = "0.8"
+percent-encoding = "2"
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-deep-link = "2.4.9"
 tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }

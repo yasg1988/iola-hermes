@@ -47,12 +47,14 @@ TypeScript-слой устанавливает совместимый `window.he
 - событие завершения локального backend через `onBackendExit`;
 - синхронизация native theme и события состояния окна через
   `setNativeTheme`/`onWindowStateChanged`;
+- обработка `hermes://` deep links через `onDeepLink` и очередь до
+  `signalDeepLinkReady`;
 - Windows/Linux release workflow для Tauri-сборок.
 
 ## Что дальше
 
 - заменить оставшиеся заглушки на настоящие Tauri-команды для packaged
-  auto-update, multi-window, preview file watch и redirect/deep-link событий;
+  auto-update, multi-window, preview file watch и notification/focus events;
 - доработать runtime translucency/titlebar tint, если выбранная платформа и
   Tauri API позволят применить эффект без нестабильных системных вызовов;
 - перенести redirect OAuth login flow для remote gateway;

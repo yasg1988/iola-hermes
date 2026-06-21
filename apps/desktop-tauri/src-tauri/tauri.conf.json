@@ -27,6 +27,13 @@
     },
     "withGlobalTauri": false
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["hermes"]
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi", "appimage", "deb", "rpm"],

@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, Theme, WebviewWindow, WindowEvent};
 use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::DialogExt;
 
 struct AppState {
@@ -20,6 +21,11 @@ struct AppState {
     boot_progress: Arc<Mutex<BootProgress>>,
     oauth_sessions: Arc<Mutex<Option<HashMap<String, StoredOauthSession>>>>,
     terminals: Arc<Mutex<HashMap<String, TerminalRuntime>>>,
+}
+
+struct DeepLinkState {
+    pending: Mutex<Option<DeepLinkPayload>>,
+    ready: Mutex<bool>,
 }
 
 struct BackendRuntime {
@@ -170,6 +176,13 @@ struct BootProgress {
 struct BackendExit {
     code: Option<i32>,
     signal: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct DeepLinkPayload {
+    kind: String,
+    name: String,
+    params: HashMap<String, String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -520,6 +533,33 @@ fn set_title_bar_theme(_payload: HermesTitleBarTheme) -> bool {
 #[tauri::command]
 fn set_translucency(payload: TranslucencyInput) -> bool {
     payload.intensity <= 100
+}
+
+#[tauri::command]
+fn signal_deep_link_ready(
+    app: tauri::AppHandle,
+    deep_links: tauri::State<'_, DeepLinkState>,
+) -> Result<serde_json::Value, String> {
+    {
+        let mut ready = deep_links
+            .ready
+            .lock()
+            .map_err(|_| "Deep link state lock poisoned".to_string())?;
+        *ready = true;
+    }
+
+    let pending = {
+        let mut pending = deep_links
+            .pending
+            .lock()
+            .map_err(|_| "Deep link state lock poisoned".to_string())?;
+        pending.take()
+    };
+    if let Some(payload) = pending {
+        deliver_deep_link_payload(&app, payload);
+    }
+
+    Ok(serde_json::json!({ "ok": true }))
 }
 
 #[tauri::command]
@@ -2833,6 +2873,56 @@ fn emit_window_state(window: &WebviewWindow) {
     let _ = window.emit("hermes:window-state-changed", window_state_payload(window));
 }
 
+fn parse_deep_link_url(raw_url: &str) -> Option<DeepLinkPayload> {
+    let parsed = reqwest::Url::parse(raw_url).ok()?;
+    if parsed.scheme() != "hermes" {
+        return None;
+    }
+    let kind = parsed.host_str().unwrap_or("").to_string();
+    let raw_name = parsed.path().trim_start_matches('/');
+    let name = percent_encoding::percent_decode_str(raw_name)
+        .decode_utf8_lossy()
+        .to_string();
+    let params = parsed
+        .query_pairs()
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect();
+    Some(DeepLinkPayload { kind, name, params })
+}
+
+fn deliver_deep_link_payload(app: &tauri::AppHandle, payload: DeepLinkPayload) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+        let _ = window.emit("hermes:deep-link", payload);
+    }
+}
+
+fn handle_deep_link_payload(app: &tauri::AppHandle, payload: DeepLinkPayload) {
+    let deep_links = app.state::<DeepLinkState>();
+    let ready = deep_links.ready.lock().map(|ready| *ready).unwrap_or(false);
+    if ready {
+        deliver_deep_link_payload(app, payload);
+    } else if let Ok(mut pending) = deep_links.pending.lock() {
+        *pending = Some(payload);
+    }
+}
+
+fn handle_deep_link_url(app: &tauri::AppHandle, raw_url: &str) {
+    if let Some(payload) = parse_deep_link_url(raw_url) {
+        handle_deep_link_payload(app, payload);
+    }
+}
+
+fn handle_deep_link_args(app: &tauri::AppHandle, args: &[String]) {
+    for arg in args {
+        if arg.starts_with("hermes://") {
+            handle_deep_link_url(app, arg);
+            break;
+        }
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(AppState {
@@ -2841,6 +2931,18 @@ fn main() {
             oauth_sessions: Arc::new(Mutex::new(None)),
             terminals: Arc::new(Mutex::new(HashMap::new())),
         })
+        .manage(DeepLinkState {
+            pending: Mutex::new(None),
+            ready: Mutex::new(false),
+        })
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            handle_deep_link_args(app, &argv);
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 emit_window_state(&window);
@@ -2852,6 +2954,17 @@ fn main() {
                     | WindowEvent::ThemeChanged(_) => emit_window_state(&event_window),
                     _ => {}
                 });
+            }
+            let app_handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    handle_deep_link_url(&app_handle, url.as_str());
+                }
+            });
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                for url in urls {
+                    handle_deep_link_url(app.handle(), url.as_str());
+                }
             }
             Ok(())
         })
@@ -2884,6 +2997,7 @@ fn main() {
             set_native_theme,
             set_title_bar_theme,
             set_translucency,
+            signal_deep_link_ready,
             start_backend,
             terminal_dispose,
             terminal_resize,
