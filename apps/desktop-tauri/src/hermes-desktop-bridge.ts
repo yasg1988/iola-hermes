@@ -510,7 +510,7 @@ export function installHermesDesktopBridge() {
     onFocusSession: (callback: (sessionId: string) => void) => subscribeLocal('hermes:focus-session', callback),
     onNotificationAction: (callback: (payload: { actionId: string; sessionId?: string }) => void) =>
       subscribeLocal('hermes:notification-action', callback),
-    onOpenUpdatesRequested: () => noopUnsubscribe,
+    onOpenUpdatesRequested: (callback: () => void) => subscribe('hermes:open-updates', callback),
     onPowerResume,
     onPreviewFileChanged: (callback: (payload: HermesPreviewFileChanged) => void) =>
       subscribe('hermes:preview-file-changed', callback),

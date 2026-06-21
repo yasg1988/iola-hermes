@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child as ProcessChild, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tauri::menu::{Menu, MenuItem, Submenu};
 use tauri::utils::config::Color;
 use tauri::{
     Emitter, Manager, Theme, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
@@ -33,6 +34,7 @@ const MARKETPLACE_MAX_VSIX_BYTES: usize = 40 * 1024 * 1024;
 const MARKETPLACE_TIMEOUT: Duration = Duration::from_secs(20);
 const MARKETPLACE_USER_AGENT: &str = "Hermes-RU-Iola-Desktop";
 const MARKETPLACE_VSIX_ASSET_TYPE: &str = "Microsoft.VisualStudio.Services.VSIXPackage";
+const MENU_OPEN_UPDATES_ID: &str = "hermes-open-updates";
 const TEXT_PREVIEW_MAX_BYTES: u64 = 512 * 1024;
 
 struct AppState {
@@ -5221,6 +5223,26 @@ fn emit_window_state(window: &WebviewWindow) {
     let _ = window.emit("hermes:window-state-changed", window_state_payload(window));
 }
 
+fn build_app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
+    let updates = MenuItem::with_id(
+        app,
+        MENU_OPEN_UPDATES_ID,
+        "Проверить обновления",
+        true,
+        None::<&str>,
+    )?;
+    let help = Submenu::with_items(app, "Справка", true, &[&updates])?;
+    Menu::with_items(app, &[&help])
+}
+
+fn emit_open_updates_requested<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    let _ = app.emit("hermes:open-updates", ());
+}
+
 fn install_window_state_events(window: &WebviewWindow) {
     emit_window_state(window);
     let event_window = window.clone();
@@ -5306,6 +5328,12 @@ fn main() {
         }))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
+        .menu(build_app_menu)
+        .on_menu_event(|app, event| {
+            if event.id() == MENU_OPEN_UPDATES_ID {
+                emit_open_updates_requested(app);
+            }
+        })
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 install_window_state_events(&window);

@@ -48,6 +48,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - проверка обновлений packaged-приложения через GitHub Releases, выбор
   подходящего Tauri installer/AppImage, скачивание и передача запуска
   установщику;
+- native menu `Справка -> Проверить обновления` с событием открытия окна
+  обновлений в React UI;
 - сводка удаления и запуск штатного `hermes uninstall` из Tauri;
 - TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - основной React renderer из `apps/desktop`;
