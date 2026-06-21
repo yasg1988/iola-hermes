@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Базовые разрешения Hermes RU Iola Tauri.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "notification:default"]
 }

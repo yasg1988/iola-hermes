@@ -6,7 +6,7 @@ authors = ["Yakunin"]
 license = "MIT"
 repository = "https://github.com/yasg1988/iola-hermes"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.77.2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -28,3 +28,4 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-deep-link = "2.4.9"
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = { version = "2.4.2", features = ["deep-link"] }
+tauri-plugin-notification = "2"

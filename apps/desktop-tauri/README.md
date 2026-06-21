@@ -54,12 +54,15 @@ TypeScript-слой устанавливает совместимый `window.he
   `signalDeepLinkReady`;
 - отслеживание изменений локальных файлов предпросмотра через
   `watchPreviewFile`/`onPreviewFileChanged`;
+- нативные desktop-уведомления через Tauri notification plugin, permission
+  flow, клик для фокуса нужной сессии и best-effort обработка действий там,
+  где их поддерживает платформа;
 - Windows/Linux release workflow для Tauri-сборок.
 
 ## Что дальше
 
 - заменить оставшиеся заглушки на настоящие Tauri-команды для packaged
-  auto-update, multi-window и notification/focus events;
+  auto-update и multi-window;
 - доработать runtime translucency/titlebar tint, если выбранная платформа и
   Tauri API позволят применить эффект без нестабильных системных вызовов;
 - прогнать ручной сценарий запуска установленного приложения.

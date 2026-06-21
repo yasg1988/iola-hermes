@@ -3171,6 +3171,7 @@ fn main() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {

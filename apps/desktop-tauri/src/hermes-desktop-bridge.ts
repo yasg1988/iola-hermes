@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { isPermissionGranted, onAction, registerActionTypes, requestPermission } from '@tauri-apps/plugin-notification'
 
 type Unsubscribe = () => void
 type DesktopBridge = Record<string, unknown>
@@ -60,6 +61,20 @@ interface DeepLinkPayload {
   params: Record<string, string>
 }
 
+interface HermesNotificationAction {
+  id: string
+  text: string
+}
+
+interface HermesNotification {
+  actions?: HermesNotificationAction[]
+  body?: string
+  kind?: string
+  sessionId?: null | string
+  silent?: boolean
+  title?: string
+}
+
 interface OauthLoginResult {
   baseUrl: string
   connected: boolean
@@ -73,6 +88,11 @@ interface OauthLoginResult {
 const noopUnsubscribe: Unsubscribe = () => undefined
 
 const ok = { ok: true }
+
+const localEvents = new EventTarget()
+const registeredNotificationActionTypes = new Set<string>()
+const notificationPayloads = new Map<number, HermesNotification>()
+let notificationActionListenerReady = false
 
 const emptyBootState = {
   active: false,
@@ -129,6 +149,16 @@ function subscribe<T>(event: string, callback: (payload: T) => void): Unsubscrib
   }
 }
 
+function subscribeLocal<T>(event: string, callback: (payload: T) => void): Unsubscribe {
+  const listener = (message: Event) => callback((message as CustomEvent<T>).detail)
+  localEvents.addEventListener(event, listener)
+  return () => localEvents.removeEventListener(event, listener)
+}
+
+function emitLocal<T>(event: string, payload: T) {
+  localEvents.dispatchEvent(new CustomEvent(event, { detail: payload }))
+}
+
 function bytesForInvoke(data: ArrayBuffer | Uint8Array): number[] {
   return Array.from(data instanceof Uint8Array ? data : new Uint8Array(data))
 }
@@ -160,6 +190,96 @@ async function oauthLoginConnectionConfig(remoteUrl: string, credentials?: { pas
   return invoke<OauthLoginResult>('oauth_login_connection_config', { credentials, remoteUrl })
 }
 
+async function ensureNotificationPermission() {
+  if (await isPermissionGranted()) {
+    return true
+  }
+
+  return (await requestPermission()) === 'granted'
+}
+
+async function ensureNotificationActions(payload: HermesNotification) {
+  const actions = Array.isArray(payload.actions) ? payload.actions.filter(action => action?.id && action?.text) : []
+  if (actions.length === 0) {
+    return undefined
+  }
+
+  const actionTypeId = `hermes-${actions.map(action => action.id).join('-')}`
+  if (!registeredNotificationActionTypes.has(actionTypeId)) {
+    await registerActionTypes([
+      {
+        actions: actions.map(action => ({ id: action.id, title: action.text })),
+        id: actionTypeId
+      }
+    ])
+    registeredNotificationActionTypes.add(actionTypeId)
+  }
+
+  return actionTypeId
+}
+
+function ensureNotificationActionListener() {
+  if (notificationActionListenerReady) {
+    return
+  }
+
+  notificationActionListenerReady = true
+  void onAction(notification => {
+    const id = typeof notification.id === 'number' ? notification.id : null
+    const payload = id === null ? undefined : notificationPayloads.get(id)
+    const actionId =
+      typeof notification.extra?.actionId === 'string'
+        ? notification.extra.actionId
+        : typeof notification.extra?.action === 'string'
+          ? notification.extra.action
+          : undefined
+    if (payload?.sessionId && actionId) {
+      emitLocal('hermes:notification-action', { actionId, sessionId: payload.sessionId })
+    }
+  }).catch(() => {
+    notificationActionListenerReady = false
+  })
+}
+
+async function notify(payload: HermesNotification) {
+  try {
+    if (!(await ensureNotificationPermission())) {
+      return false
+    }
+
+    ensureNotificationActionListener()
+    const id = Date.now() % 2147483647
+    const actionTypeId = await ensureNotificationActions(payload)
+    notificationPayloads.set(id, payload)
+    window.setTimeout(() => notificationPayloads.delete(id), 10 * 60 * 1000)
+
+    const notification = new window.Notification(payload.title || 'Hermes RU Iola', {
+      body: payload.body || '',
+      data: {
+        kind: payload.kind,
+        sessionId: payload.sessionId ?? undefined
+      },
+      silent: Boolean(payload.silent),
+      tag: payload.sessionId ? `hermes:${payload.sessionId}` : undefined,
+      // Tauri's notification plugin consumes these extended fields where the
+      // platform supports them; browsers ignore unknown NotificationOptions.
+      ...(actionTypeId ? { actionTypeId, extra: { sessionId: payload.sessionId ?? undefined } } : {}),
+      id
+    } as NotificationOptions)
+
+    notification.onclick = () => {
+      if (payload.sessionId) {
+        emitLocal('hermes:focus-session', payload.sessionId)
+      }
+      window.focus()
+    }
+
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function installHermesDesktopBridge() {
   const target = bridgeWindow()
   if (target.hermesDesktop) {
@@ -187,7 +307,7 @@ export function installHermesDesktopBridge() {
       source: targetPath,
       url: targetPath
     }),
-    notify: async () => true,
+    notify,
     oauthLoginConnectionConfig,
     oauthLogoutConnectionConfig: (remoteUrl?: string) => invoke('oauth_logout_connection_config', { remoteUrl }),
     onBackendExit: (callback: (payload: BackendExit) => void) => subscribe('hermes:backend-exit', callback),
@@ -195,8 +315,9 @@ export function installHermesDesktopBridge() {
     onBootstrapEvent: () => noopUnsubscribe,
     onClosePreviewRequested: () => noopUnsubscribe,
     onDeepLink: (callback: (payload: DeepLinkPayload) => void) => subscribe('hermes:deep-link', callback),
-    onFocusSession: () => noopUnsubscribe,
-    onNotificationAction: () => noopUnsubscribe,
+    onFocusSession: (callback: (sessionId: string) => void) => subscribeLocal('hermes:focus-session', callback),
+    onNotificationAction: (callback: (payload: { actionId: string; sessionId?: string }) => void) =>
+      subscribeLocal('hermes:notification-action', callback),
     onOpenUpdatesRequested: () => noopUnsubscribe,
     onPowerResume: () => noopUnsubscribe,
     onPreviewFileChanged: (callback: (payload: HermesPreviewFileChanged) => void) =>
