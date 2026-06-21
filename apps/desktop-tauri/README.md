@@ -62,6 +62,8 @@ TypeScript-слой устанавливает совместимый `window.he
   `ws-ticket` для WebSocket-подключения;
 - события запуска локального backend через `onBootProgress`;
 - событие завершения локального backend через `onBackendExit`;
+- сброс и повторная попытка запуска backend из boot-failure overlay через
+  `resetBootstrap`/`repairBootstrap`;
 - сохранение активного профиля, переключение профиля из интерфейса и запуск
   локального backend с выбранным профилем;
 - синхронизация native theme и события состояния окна через

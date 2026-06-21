@@ -109,6 +109,17 @@ struct TouchBackendResult {
 }
 
 #[derive(Debug, Serialize)]
+struct BootstrapResetResult {
+    ok: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct BootstrapCancelResult {
+    ok: bool,
+    cancelled: bool,
+}
+
+#[derive(Debug, Serialize)]
 struct BackendProbe {
     ok: bool,
     python: Option<String>,
@@ -718,6 +729,33 @@ fn set_active_profile(
     teardown_primary_backend(&state);
     reload_main_window(&app);
     Ok(DesktopActiveProfile { profile: next })
+}
+
+#[tauri::command]
+fn reset_bootstrap(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> BootstrapResetResult {
+    teardown_primary_backend(&state);
+    reset_boot_progress(&state);
+    reload_main_window(&app);
+    BootstrapResetResult { ok: true }
+}
+
+#[tauri::command]
+fn repair_bootstrap(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> BootstrapResetResult {
+    reset_bootstrap(app, state)
+}
+
+#[tauri::command]
+fn cancel_bootstrap() -> BootstrapCancelResult {
+    BootstrapCancelResult {
+        ok: true,
+        cancelled: false,
+    }
 }
 
 #[tauri::command]
@@ -2209,6 +2247,12 @@ fn default_boot_progress() -> BootProgress {
         progress: 2,
         running: true,
         timestamp: now_millis(),
+    }
+}
+
+fn reset_boot_progress(state: &tauri::State<'_, AppState>) {
+    if let Ok(mut progress) = state.boot_progress.lock() {
+        *progress = default_boot_progress();
     }
 }
 
@@ -5202,6 +5246,7 @@ fn main() {
             apply_connection_config,
             backend_probe,
             backend_version,
+            cancel_bootstrap,
             fetch_link_title,
             fetch_marketplace_themes,
             get_active_profile,
@@ -5225,6 +5270,7 @@ fn main() {
             read_dir,
             read_file_data_url,
             read_file_text,
+            repair_bootstrap,
             revalidate_connection,
             reveal_logs,
             sanitize_workspace_cwd,
@@ -5241,6 +5287,7 @@ fn main() {
             set_translucency,
             signal_deep_link_ready,
             start_backend,
+            reset_bootstrap,
             stop_preview_file_watch,
             terminal_dispose,
             terminal_resize,
