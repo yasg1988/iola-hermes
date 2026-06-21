@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_dialog::DialogExt;
 
 struct AppState {
     backend: Mutex<Option<BackendRuntime>>,
@@ -102,6 +104,15 @@ struct ReadDirResult {
 struct SanitizedCwd {
     cwd: String,
     sanitized: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SelectPathsOptions {
+    default_path: Option<String>,
+    directories: Option<bool>,
+    multiple: Option<bool>,
+    title: Option<String>,
 }
 
 #[tauri::command]
@@ -354,6 +365,53 @@ fn git_root(path: String) -> Option<String> {
         }
     }
     None
+}
+
+#[tauri::command]
+fn select_paths(
+    app: tauri::AppHandle,
+    options: Option<SelectPathsOptions>,
+) -> Result<Vec<String>, String> {
+    let options = options.unwrap_or(SelectPathsOptions {
+        default_path: None,
+        directories: None,
+        multiple: None,
+        title: None,
+    });
+    let mut dialog = app.dialog().file();
+
+    if let Some(title) = options.title {
+        dialog = dialog.set_title(title);
+    }
+    if let Some(default_path) = options.default_path {
+        dialog = dialog.set_directory(default_path);
+    }
+
+    let paths = if options.directories.unwrap_or(false) {
+        if options.multiple.unwrap_or(false) {
+            dialog.blocking_pick_folders()
+        } else {
+            dialog.blocking_pick_folder().map(|path| vec![path])
+        }
+    } else if options.multiple.unwrap_or(false) {
+        dialog.blocking_pick_files()
+    } else {
+        dialog.blocking_pick_file().map(|path| vec![path])
+    };
+
+    Ok(paths
+        .unwrap_or_default()
+        .into_iter()
+        .map(|path| normalize_path_string(path.into_path().unwrap_or_default()))
+        .collect())
+}
+
+#[tauri::command]
+fn write_clipboard(app: tauri::AppHandle, text: String) -> Result<bool, String> {
+    app.clipboard()
+        .write_text(text)
+        .map_err(|error| format!("Не удалось записать текст в буфер обмена: {error}"))?;
+    Ok(true)
 }
 
 struct BackendConnection {
@@ -760,8 +818,12 @@ fn main() {
             read_file_data_url,
             read_file_text,
             sanitize_workspace_cwd,
-            start_backend
+            select_paths,
+            start_backend,
+            write_clipboard,
         ])
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .run(tauri::generate_context!())
         .expect("failed to run Hermes RU Iola Tauri");
 }

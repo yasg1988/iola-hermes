@@ -123,7 +123,7 @@ export function installHermesDesktopBridge() {
     saveConnectionConfig: async () => localConnectionConfig,
     saveImageBuffer: unsupported('saveImageBuffer'),
     saveImageFromUrl: async () => false,
-    selectPaths: async () => [],
+    selectPaths: (options?: unknown) => invoke('select_paths', { options }),
     setNativeTheme: () => undefined,
     setPreviewShortcutActive: () => undefined,
     setTitleBarTheme: () => undefined,
@@ -171,9 +171,6 @@ export function installHermesDesktopBridge() {
     },
     watchPreviewFile: async (url: string) => ({ id: url, path: url }),
     worktrees: async () => ({}),
-    writeClipboard: async (text: string) => {
-      await navigator.clipboard?.writeText(text)
-      return true
-    }
+    writeClipboard: (text: string) => invoke('write_clipboard', { text })
   }
 }
