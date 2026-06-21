@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -131,6 +132,12 @@ struct DesktopConnectionTestResult {
 struct DesktopOauthLoginInput {
     password: Option<String>,
     username: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OpenSessionWindowOptions {
+    watch: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -692,6 +699,41 @@ fn probe_connection_config(remote_url: String) -> DesktopConnectionProbeResult {
             .and_then(|value| value.get("version"))
             .and_then(|value| value.as_str())
             .map(str::to_string),
+    }
+}
+
+#[tauri::command]
+async fn open_session_window(
+    app: tauri::AppHandle,
+    session_id: String,
+    opts: Option<OpenSessionWindowOptions>,
+) -> serde_json::Value {
+    let session_id = session_id.trim();
+    if session_id.is_empty() {
+        return serde_json::json!({
+            "ok": false,
+            "error": "empty-session-id"
+        });
+    }
+
+    match open_or_focus_secondary_window(
+        &app,
+        &session_window_label(session_id),
+        Some(session_id),
+        opts.unwrap_or_default().watch.unwrap_or(false),
+        false,
+    ) {
+        Ok(()) => serde_json::json!({ "ok": true }),
+        Err(error) => serde_json::json!({ "ok": false, "error": error }),
+    }
+}
+
+#[tauri::command]
+async fn open_new_session_window(app: tauri::AppHandle) -> serde_json::Value {
+    let label = format!("new-session-{}", timestamp_millis());
+    match open_or_focus_secondary_window(&app, &label, None, false, true) {
+        Ok(()) => serde_json::json!({ "ok": true }),
+        Err(error) => serde_json::json!({ "ok": false, "error": error }),
     }
 }
 
@@ -2138,6 +2180,65 @@ fn oauth_client() -> Result<reqwest::blocking::Client, String> {
         .map_err(|error| format!("Не удалось создать OAuth HTTP client: {error}"))
 }
 
+fn open_or_focus_secondary_window(
+    app: &tauri::AppHandle,
+    label: &str,
+    session_id: Option<&str>,
+    watch: bool,
+    new_session: bool,
+) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(label) {
+        focus_webview_window(&window);
+        return Ok(());
+    }
+
+    let route = secondary_window_route(session_id, watch, new_session);
+    let window = WebviewWindowBuilder::new(app, label.to_string(), WebviewUrl::App(route.into()))
+        .title("Hermes RU Iola")
+        .inner_size(420.0, 620.0)
+        .min_inner_size(420.0, 620.0)
+        .resizable(true)
+        .build()
+        .map_err(|error| format!("Не удалось открыть окно сессии: {error}"))?;
+    install_window_state_events(&window);
+    focus_webview_window(&window);
+    Ok(())
+}
+
+fn focus_webview_window(window: &WebviewWindow) {
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+fn secondary_window_route(session_id: Option<&str>, watch: bool, new_session: bool) -> PathBuf {
+    let mut query = "?win=secondary".to_string();
+    if new_session {
+        query.push_str("&new=1");
+    }
+    if watch {
+        query.push_str("&watch=1");
+    }
+    let route = if new_session {
+        "#/".to_string()
+    } else {
+        format!(
+            "#/{}",
+            percent_encoding::utf8_percent_encode(
+                session_id.unwrap_or_default(),
+                percent_encoding::NON_ALPHANUMERIC
+            )
+        )
+    };
+    PathBuf::from(format!("index.html{query}{route}"))
+}
+
+fn session_window_label(session_id: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    session_id.hash(&mut hasher);
+    format!("session-{:x}", hasher.finish())
+}
+
 fn oauth_redirect_login_connection_config(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, AppState>,
@@ -3101,6 +3202,18 @@ fn emit_window_state(window: &WebviewWindow) {
     let _ = window.emit("hermes:window-state-changed", window_state_payload(window));
 }
 
+fn install_window_state_events(window: &WebviewWindow) {
+    emit_window_state(window);
+    let event_window = window.clone();
+    window.on_window_event(move |event| match event {
+        WindowEvent::Focused(_)
+        | WindowEvent::Resized(_)
+        | WindowEvent::ScaleFactorChanged { .. }
+        | WindowEvent::ThemeChanged(_) => emit_window_state(&event_window),
+        _ => {}
+    });
+}
+
 fn parse_deep_link_url(raw_url: &str) -> Option<DeepLinkPayload> {
     let parsed = reqwest::Url::parse(raw_url).ok()?;
     if parsed.scheme() != "hermes" {
@@ -3175,15 +3288,7 @@ fn main() {
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
-                emit_window_state(&window);
-                let event_window = window.clone();
-                window.on_window_event(move |event| match event {
-                    WindowEvent::Focused(_)
-                    | WindowEvent::Resized(_)
-                    | WindowEvent::ScaleFactorChanged { .. }
-                    | WindowEvent::ThemeChanged(_) => emit_window_state(&event_window),
-                    _ => {}
-                });
+                install_window_state_events(&window);
             }
             let app_handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
@@ -3212,6 +3317,8 @@ fn main() {
             hermes_api,
             oauth_login_connection_config,
             oauth_logout_connection_config,
+            open_new_session_window,
+            open_session_window,
             open_external,
             probe_connection_config,
             read_dir,

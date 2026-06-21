@@ -2,6 +2,6 @@
   "$schema": "https://schema.tauri.app/config/2/capability",
   "identifier": "default",
   "description": "Базовые разрешения Hermes RU Iola Tauri.",
-  "windows": ["main"],
+  "windows": ["main", "session-*", "new-session-*"],
   "permissions": ["core:default", "notification:default"]
 }

@@ -57,12 +57,15 @@ TypeScript-слой устанавливает совместимый `window.he
 - нативные desktop-уведомления через Tauri notification plugin, permission
   flow, клик для фокуса нужной сессии и best-effort обработка действий там,
   где их поддерживает платформа;
+- отдельные окна сессий через `openSessionWindow`/`openNewSessionWindow`:
+  pop-out для существующей сессии, spectator/watch mode, компактное окно новой
+  сессии и фокус уже открытого окна вместо дубликата;
 - Windows/Linux release workflow для Tauri-сборок.
 
 ## Что дальше
 
 - заменить оставшиеся заглушки на настоящие Tauri-команды для packaged
-  auto-update и multi-window;
+  auto-update;
 - доработать runtime translucency/titlebar tint, если выбранная платформа и
   Tauri API позволят применить эффект без нестабильных системных вызовов;
 - прогнать ручной сценарий запуска установленного приложения.

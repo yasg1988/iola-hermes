@@ -325,8 +325,9 @@ export function installHermesDesktopBridge() {
     onWindowStateChanged: (callback: (payload: HermesWindowState) => void) =>
       subscribe('hermes:window-state-changed', callback),
     openExternal: (url: string) => invoke('open_external', { url }),
-    openNewSessionWindow: async () => ok,
-    openSessionWindow: async () => ok,
+    openNewSessionWindow: () => invoke('open_new_session_window'),
+    openSessionWindow: (sessionId: string, opts?: { watch?: boolean }) =>
+      invoke('open_session_window', { opts, sessionId }),
     profile: {
       get: async () => ({ profile: null }),
       set: async (name: null | string) => ({ profile: name })
