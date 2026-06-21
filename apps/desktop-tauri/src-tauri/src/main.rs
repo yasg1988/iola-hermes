@@ -232,6 +232,16 @@ struct RecentLogsResult {
     path: String,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UninstallRunResult {
+    error: Option<String>,
+    message: String,
+    mode: String,
+    ok: bool,
+    pid: Option<u32>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdateApplyOptions {
@@ -903,6 +913,99 @@ fn get_recent_logs(app: tauri::AppHandle) -> RecentLogsResult {
     RecentLogsResult {
         lines,
         path: normalize_path_string(path),
+    }
+}
+
+#[tauri::command]
+fn uninstall_summary(app: tauri::AppHandle) -> serde_json::Value {
+    let fallback = || uninstall_fallback_summary(&app);
+    let Some(python) = find_python() else {
+        return fallback();
+    };
+    if can_import_hermes(&python).is_err() {
+        return fallback();
+    }
+
+    let output = Command::new(&python)
+        .args(["-m", "hermes_cli.main", "uninstall", "--gui-summary"])
+        .output();
+    let Ok(output) = output else {
+        return fallback();
+    };
+    if !output.status.success() {
+        return fallback();
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some(raw_json) = stdout.lines().rev().find(|line| !line.trim().is_empty()) else {
+        return fallback();
+    };
+    serde_json::from_str(raw_json).unwrap_or_else(|_| fallback())
+}
+
+#[tauri::command]
+fn uninstall_run(mode: String) -> UninstallRunResult {
+    let normalized = mode.trim().to_lowercase();
+    let args: Vec<&str> = match normalized.as_str() {
+        "gui" => vec!["-m", "hermes_cli.main", "uninstall", "--gui", "--yes"],
+        "lite" | "keep-data" | "keep_data" => vec!["-m", "hermes_cli.main", "uninstall", "--yes"],
+        "full" => vec!["-m", "hermes_cli.main", "uninstall", "--full", "--yes"],
+        _ => {
+            return UninstallRunResult {
+                error: Some("Неизвестный режим удаления.".to_string()),
+                message: "Поддерживаются режимы gui, lite и full.".to_string(),
+                mode: normalized,
+                ok: false,
+                pid: None,
+            }
+        }
+    };
+
+    let Some(python) = find_python() else {
+        return UninstallRunResult {
+            error: Some("Python 3.11-3.14 не найден".to_string()),
+            message: "Не удалось запустить удаление Hermes RU Iola.".to_string(),
+            mode: normalized,
+            ok: false,
+            pid: None,
+        };
+    };
+    if let Err(error) = can_import_hermes(&python) {
+        return UninstallRunResult {
+            error: Some(error),
+            message: "Hermes CLI недоступен в найденном Python.".to_string(),
+            mode: normalized,
+            ok: false,
+            pid: None,
+        };
+    }
+
+    let mut command = Command::new(&python);
+    command.args(&args);
+    command.stdin(Stdio::null());
+    command.stdout(Stdio::null());
+    command.stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+
+    match command.spawn() {
+        Ok(child) => UninstallRunResult {
+            error: None,
+            message: "Удаление запущено в отдельном процессе.".to_string(),
+            mode: normalized,
+            ok: true,
+            pid: Some(child.id()),
+        },
+        Err(error) => UninstallRunResult {
+            error: Some(error.to_string()),
+            message: "Не удалось запустить удаление Hermes RU Iola.".to_string(),
+            mode: normalized,
+            ok: false,
+            pid: None,
+        },
     }
 }
 
@@ -1807,6 +1910,32 @@ fn home_dir() -> Option<PathBuf> {
     }
 }
 
+fn uninstall_fallback_summary(app: &tauri::AppHandle) -> serde_json::Value {
+    let hermes_home = env::var_os("HERMES_HOME")
+        .map(PathBuf::from)
+        .or_else(|| home_dir().map(|path| path.join(".hermes")))
+        .unwrap_or_else(|| PathBuf::from(".hermes"));
+    let userdata_dir = app.path().app_data_dir().ok();
+    let running_app_path = env::current_exe().ok();
+    let agent_installed = find_python()
+        .as_deref()
+        .map(|python| can_import_hermes(python).is_ok())
+        .unwrap_or(false);
+
+    serde_json::json!({
+        "agent_installed": agent_installed,
+        "gui_installed": true,
+        "hermes_home": normalize_path_string(hermes_home),
+        "packaged_app_paths": [],
+        "platform": env::consts::OS,
+        "probe": "tauri-fallback",
+        "running_app_path": running_app_path.map(normalize_path_string).unwrap_or_default(),
+        "source_built_artifacts": [],
+        "userdata_dir": userdata_dir.clone().map(normalize_path_string).unwrap_or_default(),
+        "userdata_exists": userdata_dir.as_ref().map(|path| path.exists()).unwrap_or(false),
+    })
+}
+
 fn save_image_bytes(data: &[u8], ext: &str) -> Result<String, String> {
     let dir = dirs::download_dir()
         .or_else(home_dir)
@@ -2148,6 +2277,8 @@ fn main() {
             terminal_start,
             terminal_write,
             test_connection_config,
+            uninstall_run,
+            uninstall_summary,
             updates_apply,
             updates_check,
             updates_get_branch,

@@ -36,19 +36,17 @@ TypeScript-слой устанавливает совместимый `window.he
 - запрос доступа к микрофону через WebView media API;
 - проверка и применение обновлений для source/git-запуска через `git fetch` и
   `git pull --ff-only`;
+- сводка удаления и запуск штатного `hermes uninstall` из Tauri;
 - TypeScript bridge `src/hermes-desktop-bridge.ts`;
 - основной React renderer из `apps/desktop`;
 - настройки подключения gateway: local mode и remote token gateway с
   сохранением, применением, проверкой и probe `/api/status`;
-- безопасные заглушки для функций, которые пока завязаны на Electron main
-  process.
+- Windows/Linux release workflow для Tauri-сборок.
 
 ## Что дальше
 
-- заменить оставшиеся заглушки на настоящие Tauri-команды для uninstall,
-  packaged auto-update и расширенных desktop-событий;
+- заменить оставшиеся заглушки на настоящие Tauri-команды для packaged
+  auto-update и расширенных desktop-событий;
 - перенести OAuth login flow для remote gateway;
 - перенести boot/progress events;
-- добавить PTY/терминал;
-- настроить Windows/Linux release workflow;
 - прогнать ручной сценарий запуска установленного приложения.

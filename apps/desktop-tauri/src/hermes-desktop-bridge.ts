@@ -47,12 +47,6 @@ function bridgeWindow() {
   return window as unknown as { hermesDesktop?: DesktopBridge }
 }
 
-function unsupported(name: string) {
-  return async () => {
-    throw new Error(`${name} пока не реализован в Tauri-оболочке`)
-  }
-}
-
 function normalizeApiRequest(request: ApiRequest): ApiRequest {
   return {
     ...request,
@@ -97,6 +91,16 @@ async function requestMicrophoneAccess() {
   } catch {
     return false
   }
+}
+
+function normalizeUninstallMode(input: unknown) {
+  if (typeof input === 'string') {
+    return input
+  }
+  if (input && typeof input === 'object' && 'mode' in input) {
+    return String((input as { mode?: unknown }).mode ?? 'lite')
+  }
+  return 'lite'
 }
 
 export function installHermesDesktopBridge() {
@@ -190,17 +194,8 @@ export function installHermesDesktopBridge() {
     },
     touchBackend: async () => ok,
     uninstall: {
-      run: async () => ({ error: 'Удаление через Tauri пока не реализовано', ok: false }),
-      summary: async () => ({
-        agent_installed: false,
-        gui_installed: false,
-        hermes_home: '',
-        packaged_app_paths: [],
-        platform: navigator.platform,
-        source_built_artifacts: [],
-        userdata_dir: '',
-        userdata_exists: false
-      })
+      run: (mode?: unknown) => invoke('uninstall_run', { mode: normalizeUninstallMode(mode) }),
+      summary: () => invoke('uninstall_summary')
     },
     updates: {
       apply: (opts?: unknown) => invoke('updates_apply', { opts }),
