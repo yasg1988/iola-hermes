@@ -154,6 +154,40 @@ function onClosePreviewRequested(callback: () => void): Unsubscribe {
   return () => closePreviewCallbacks.delete(callback)
 }
 
+function onPowerResume(callback: () => void): Unsubscribe {
+  let disposed = false
+  let lastSignalAt = 0
+  const signal = () => {
+    if (disposed) {
+      return
+    }
+
+    const now = Date.now()
+    if (now - lastSignalAt < 750) {
+      return
+    }
+
+    lastSignalAt = now
+    callback()
+  }
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') {
+      signal()
+    }
+  }
+
+  window.addEventListener('online', signal)
+  window.addEventListener('focus', signal)
+  document.addEventListener('visibilitychange', onVisible)
+
+  return () => {
+    disposed = true
+    window.removeEventListener('online', signal)
+    window.removeEventListener('focus', signal)
+    document.removeEventListener('visibilitychange', onVisible)
+  }
+}
+
 function normalizeApiRequest(request: ApiRequest): ApiRequest {
   return {
     ...request,
@@ -349,7 +383,7 @@ export function installHermesDesktopBridge() {
     onNotificationAction: (callback: (payload: { actionId: string; sessionId?: string }) => void) =>
       subscribeLocal('hermes:notification-action', callback),
     onOpenUpdatesRequested: () => noopUnsubscribe,
-    onPowerResume: () => noopUnsubscribe,
+    onPowerResume,
     onPreviewFileChanged: (callback: (payload: HermesPreviewFileChanged) => void) =>
       subscribe('hermes:preview-file-changed', callback),
     onWindowStateChanged: (callback: (payload: HermesWindowState) => void) =>
