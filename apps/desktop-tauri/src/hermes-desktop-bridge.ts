@@ -366,7 +366,6 @@ export function installHermesDesktopBridge() {
     getGatewayWsUrl: (profile?: null | string) => invoke('get_gateway_ws_url', { profile }),
     getPathForFile: () => '',
     getRecentLogs: () => invoke('get_recent_logs'),
-    getRemoteDisplayReason: async () => null,
     getVersion: () => invoke('get_version'),
     gitRoot: (path: string) => invoke('git_root', { path }),
     normalizePreviewTarget: (target: string, baseDir?: string) =>
