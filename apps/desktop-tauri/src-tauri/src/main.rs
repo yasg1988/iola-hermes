@@ -26,6 +26,7 @@ const LINK_TITLE_BYTE_BUDGET: usize = 96 * 1024;
 const LINK_TITLE_TIMEOUT: Duration = Duration::from_secs(5);
 const LINK_TITLE_USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
+const TEXT_PREVIEW_MAX_BYTES: u64 = 512 * 1024;
 
 struct AppState {
     backend: Arc<Mutex<Option<BackendRuntime>>>,
@@ -278,6 +279,22 @@ struct PreviewFileChanged {
 struct PreviewWatch {
     id: String,
     path: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PreviewTarget {
+    binary: Option<bool>,
+    byte_size: Option<u64>,
+    kind: String,
+    label: String,
+    language: Option<String>,
+    large: Option<bool>,
+    mime_type: Option<String>,
+    path: Option<String>,
+    preview_kind: Option<String>,
+    source: String,
+    url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -1213,6 +1230,18 @@ fn git_root(path: String) -> Option<String> {
         }
     }
     None
+}
+
+#[tauri::command]
+fn normalize_preview_target(raw_target: String, base_dir: Option<String>) -> Option<PreviewTarget> {
+    let raw = raw_target.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    if raw.starts_with("http://") || raw.starts_with("https://") {
+        return preview_url_target(raw);
+    }
+    preview_file_target(raw, base_dir.as_deref())
 }
 
 #[tauri::command]
@@ -2408,6 +2437,149 @@ fn read_git_branch(git_dir: &Path) -> Option<String> {
         return Some(head.chars().take(8).collect());
     }
     None
+}
+
+fn preview_url_target(raw: &str) -> Option<PreviewTarget> {
+    let mut url = reqwest::Url::parse(raw).ok()?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return None;
+    }
+    let host = url.host_str()?.to_ascii_lowercase();
+    if !matches!(
+        host.as_str(),
+        "0.0.0.0" | "127.0.0.1" | "::1" | "[::1]" | "localhost"
+    ) {
+        return None;
+    }
+    if host == "0.0.0.0" {
+        url.set_host(Some("127.0.0.1")).ok()?;
+    }
+    Some(PreviewTarget {
+        binary: None,
+        byte_size: None,
+        kind: "url".to_string(),
+        label: preview_label_for_url(&url),
+        language: None,
+        large: None,
+        mime_type: None,
+        path: None,
+        preview_kind: None,
+        source: raw.to_string(),
+        url: url.to_string(),
+    })
+}
+
+fn preview_file_target(raw: &str, base_dir: Option<&str>) -> Option<PreviewTarget> {
+    let base = base_dir
+        .filter(|value| !value.trim().is_empty())
+        .map(expand_user_path)
+        .map(absolute_path)
+        .unwrap_or_else(default_project_dir_fallback);
+    let mut resolved = if raw.to_ascii_lowercase().starts_with("file:") {
+        file_path_from_preview_url(raw).ok()?
+    } else {
+        let expanded = expand_user_path(raw);
+        if expanded.is_absolute() {
+            expanded
+        } else {
+            base.join(expanded)
+        }
+    };
+    resolved = canonical_or_self(resolved);
+    if resolved.is_dir() {
+        resolved = resolved.join("index.html");
+    }
+    if !resolved.is_file() {
+        return None;
+    }
+    resolved = canonical_or_self(resolved);
+    let mime_type = mime_for_path(&resolved).to_string();
+    let (binary, byte_size, large) = preview_file_metadata(&resolved, &mime_type);
+    let ext = resolved
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase())
+        .unwrap_or_default();
+    let is_html = matches!(ext.as_str(), "html" | "htm");
+    let is_image = mime_type.starts_with("image/");
+    let preview_kind = if is_html {
+        "html"
+    } else if is_image {
+        "image"
+    } else if binary {
+        "binary"
+    } else {
+        "text"
+    };
+    Some(PreviewTarget {
+        binary: Some(binary),
+        byte_size: Some(byte_size),
+        kind: "file".to_string(),
+        label: resolved.file_name()?.to_string_lossy().to_string(),
+        language: language_for_path(&resolved).or_else(|| Some("text".to_string())),
+        large: Some(large),
+        mime_type: Some(mime_type),
+        path: Some(normalize_path_string(resolved.clone())),
+        preview_kind: Some(preview_kind.to_string()),
+        source: raw.to_string(),
+        url: file_url_for_path(&resolved),
+    })
+}
+
+fn preview_label_for_url(url: &reqwest::Url) -> String {
+    let path = if url.path() == "/" { "" } else { url.path() };
+    format!("{}{}", url.host_str().unwrap_or_default(), path)
+}
+
+fn expand_user_path(value: &str) -> PathBuf {
+    let trimmed = value.trim();
+    if trimmed == "~" {
+        return home_dir().unwrap_or_else(|| PathBuf::from(trimmed));
+    }
+    if let Some(rest) = trimmed.strip_prefix("~/") {
+        if let Some(home) = home_dir() {
+            return home.join(rest);
+        }
+    }
+    PathBuf::from(trimmed)
+}
+
+fn preview_file_metadata(path: &Path, mime_type: &str) -> (bool, u64, bool) {
+    let byte_size = fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
+    let binary = if mime_type.starts_with("image/") {
+        false
+    } else {
+        read_file_prefix(path, 4096)
+            .map(|bytes| looks_binary(&bytes))
+            .unwrap_or(false)
+    };
+    (binary, byte_size, byte_size > TEXT_PREVIEW_MAX_BYTES)
+}
+
+fn read_file_prefix(path: &Path, limit: usize) -> Result<Vec<u8>, std::io::Error> {
+    let mut file = fs::File::open(path)?;
+    let mut buffer = vec![0; limit];
+    let bytes_read = file.read(&mut buffer)?;
+    buffer.truncate(bytes_read);
+    Ok(buffer)
+}
+
+fn looks_binary(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    let mut suspicious = 0usize;
+    for byte in bytes {
+        if *byte == 0 {
+            return true;
+        }
+        if *byte < 32 && !matches!(*byte, 9 | 10 | 13) {
+            suspicious += 1;
+        }
+    }
+    suspicious as f64 / bytes.len() as f64 > 0.12
 }
 
 fn write_translucency_config(app: &tauri::AppHandle, intensity: u8) -> Result<(), String> {
@@ -3972,6 +4144,61 @@ mod tests {
     }
 
     #[test]
+    fn normalizes_local_preview_url_targets() {
+        let target = preview_url_target("http://0.0.0.0:5173/index.html").expect("local url");
+
+        assert_eq!(target.kind, "url");
+        assert_eq!(target.label, "127.0.0.1/index.html");
+        assert!(target.url.starts_with("http://127.0.0.1:5173/"));
+        assert!(preview_url_target("https://example.com").is_none());
+    }
+
+    #[test]
+    fn normalizes_preview_file_targets() {
+        let temp = test_temp_dir("preview-file");
+        let file = temp.join("hello.rs");
+        fs::write(&file, "fn main() {}\n").expect("preview file");
+
+        let target = preview_file_target("hello.rs", Some(temp.to_str().unwrap())).expect("target");
+
+        assert_eq!(target.kind, "file");
+        assert_eq!(target.label, "hello.rs");
+        assert_eq!(target.preview_kind.as_deref(), Some("text"));
+        assert_eq!(target.language.as_deref(), Some("rust"));
+        assert_eq!(target.binary, Some(false));
+        assert_eq!(target.byte_size, Some(13));
+        let _ = fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn normalizes_preview_directory_to_index_html() {
+        let temp = test_temp_dir("preview-dir");
+        let dir = temp.join("site");
+        fs::create_dir_all(&dir).expect("site dir");
+        fs::write(dir.join("index.html"), "<h1>Йола</h1>").expect("index");
+
+        let target = preview_file_target("site", Some(temp.to_str().unwrap())).expect("target");
+
+        assert_eq!(target.label, "index.html");
+        assert_eq!(target.preview_kind.as_deref(), Some("html"));
+        assert_eq!(target.mime_type.as_deref(), Some("text/html"));
+        let _ = fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn detects_binary_preview_files() {
+        let temp = test_temp_dir("preview-binary");
+        let file = temp.join("data.bin");
+        fs::write(&file, [0, 1, 2, 3, 4]).expect("binary");
+
+        let target = preview_file_target("data.bin", Some(temp.to_str().unwrap())).expect("target");
+
+        assert_eq!(target.preview_kind.as_deref(), Some("binary"));
+        assert_eq!(target.binary, Some(true));
+        let _ = fs::remove_dir_all(temp);
+    }
+
+    #[test]
     fn parses_tauri_release_asset_versions() {
         assert_eq!(
             release_asset_version("Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe").as_deref(),
@@ -4345,6 +4572,7 @@ fn main() {
             hermes_api,
             oauth_login_connection_config,
             oauth_logout_connection_config,
+            normalize_preview_target,
             open_new_session_window,
             open_session_window,
             open_external,

@@ -301,12 +301,8 @@ export function installHermesDesktopBridge() {
     getRemoteDisplayReason: async () => null,
     getVersion: () => invoke('get_version'),
     gitRoot: (path: string) => invoke('git_root', { path }),
-    normalizePreviewTarget: async (targetPath: string) => ({
-      kind: /^https?:\/\//i.test(targetPath) ? 'url' : 'file',
-      label: targetPath,
-      source: targetPath,
-      url: targetPath
-    }),
+    normalizePreviewTarget: (target: string, baseDir?: string) =>
+      invoke('normalize_preview_target', { baseDir, rawTarget: target }),
     notify,
     oauthLoginConnectionConfig,
     oauthLogoutConnectionConfig: (remoteUrl?: string) => invoke('oauth_logout_connection_config', { remoteUrl }),
