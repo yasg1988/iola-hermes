@@ -2,6 +2,33 @@
   <img src="assets/iola-hermes-banner.png" alt="Hermes RU Iola" width="100%">
 </p>
 
+<p align="center">
+  <a href="https://pypi.org/project/iola-hermes/"><img alt="PyPI" src="https://img.shields.io/pypi/v/iola-hermes?label=PyPI"></a>
+  <a href="https://www.npmjs.com/package/iola-hermes"><img alt="npm" src="https://img.shields.io/npm/v/iola-hermes?label=npm"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/yasg1988/iola-hermes?label=release"></a>
+  <a href="https://pypi.org/project/iola-hermes/"><img alt="Python versions" src="https://img.shields.io/pypi/pyversions/iola-hermes?label=Python"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/yasg1988/iola-hermes?label=license"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/tests.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/tests.yml?branch=main&label=tests"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/lint.yml"><img alt="Lint" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/lint.yml?branch=main&label=lint"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/typecheck.yml"><img alt="Typecheck" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/typecheck.yml?branch=main&label=typecheck"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/desktop-release.yml"><img alt="Desktop release" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/desktop-release.yml?label=desktop"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/docker-publish.yml"><img alt="Docker" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/docker-publish.yml?branch=main&label=docker"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/deploy-site.yml"><img alt="Docs" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/deploy-site.yml?label=docs"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/osv-scanner.yml"><img alt="OSV Scanner" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/osv-scanner.yml?branch=main&label=OSV"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/actions/workflows/supply-chain-audit.yml"><img alt="Supply chain" src="https://img.shields.io/github/actions/workflow/status/yasg1988/iola-hermes/supply-chain-audit.yml?branch=main&label=supply%20chain"></a>
+  <a href="https://www.npmjs.com/package/iola-hermes"><img alt="npm downloads" src="https://img.shields.io/npm/dm/iola-hermes?label=npm%20downloads"></a>
+  <a href="https://pypi.org/project/iola-hermes/"><img alt="PyPI downloads" src="https://img.shields.io/pypi/dm/iola-hermes?label=PyPI%20downloads"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/yasg1988/iola-hermes?style=flat&label=stars"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/forks"><img alt="GitHub forks" src="https://img.shields.io/github/forks/yasg1988/iola-hermes?style=flat&label=forks"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/watchers"><img alt="GitHub watchers" src="https://img.shields.io/github/watchers/yasg1988/iola-hermes?style=flat&label=watchers"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/issues"><img alt="GitHub issues" src="https://img.shields.io/github/issues/yasg1988/iola-hermes?label=issues"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/pulls"><img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/yasg1988/iola-hermes?label=PRs"></a>
+  <a href="https://github.com/yasg1988/iola-hermes/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/yasg1988/iola-hermes?label=last%20commit"></a>
+  <img alt="Repo size" src="https://img.shields.io/github/repo-size/yasg1988/iola-hermes?label=repo%20size">
+  <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue">
+  <img alt="Language" src="https://img.shields.io/badge/language-Русский-blue">
+</p>
+
 # Hermes RU Iola
 
 **Hermes RU Iola** — русскоязычный публичный форк
