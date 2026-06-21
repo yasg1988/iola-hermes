@@ -1,0 +1,28 @@
+{
+  "name": "iola-hermes-desktop-tauri",
+  "productName": "Hermes RU Iola Tauri",
+  "private": true,
+  "version": "0.17.2",
+  "description": "Экспериментальное легкое Tauri-приложение Hermes RU Iola.",
+  "homepage": "https://github.com/yasg1988/iola-hermes",
+  "author": "Yakunin",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:ui": "vite --host 127.0.0.1 --port 5176",
+    "build": "tauri build",
+    "build:ui": "tsc -p . && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4176",
+    "check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
+    "fmt:fix": "cargo fmt --manifest-path src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

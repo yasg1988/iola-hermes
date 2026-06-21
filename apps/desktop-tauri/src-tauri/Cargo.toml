@@ -1,0 +1,17 @@
+[package]
+name = "iola-hermes-desktop-tauri"
+version = "0.17.2"
+description = "Экспериментальная Tauri-оболочка Hermes RU Iola"
+authors = ["Yakunin"]
+license = "MIT"
+repository = "https://github.com/yasg1988/iola-hermes"
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }

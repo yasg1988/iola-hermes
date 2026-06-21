@@ -1,0 +1,23 @@
+# Rust / Cargo
+/src-tauri/target/
+/src-tauri/Cargo.lock
+
+# Tauri generated artifacts
+/src-tauri/gen/schemas/
+
+# Vite build output
+/dist/
+/dist-ssr/
+*.local
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node
+node_modules/
