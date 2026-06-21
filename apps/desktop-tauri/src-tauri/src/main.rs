@@ -37,6 +37,7 @@ const TEXT_PREVIEW_MAX_BYTES: u64 = 512 * 1024;
 
 struct AppState {
     backend: Arc<Mutex<Option<BackendRuntime>>>,
+    backend_pool: Arc<Mutex<HashMap<String, BackendRuntime>>>,
     boot_progress: Arc<Mutex<BootProgress>>,
     oauth_sessions: Arc<Mutex<Option<HashMap<String, StoredOauthSession>>>>,
     preview_watchers: Arc<Mutex<HashMap<String, PreviewWatcherRuntime>>>,
@@ -553,7 +554,7 @@ fn start_backend(
     _host: Option<String>,
     port: Option<u16>,
 ) -> Result<BackendProcess, String> {
-    let connection = ensure_backend(&app, &state, port)?;
+    let connection = ensure_backend(&app, &state, port, None)?;
 
     Ok(BackendProcess {
         pid: connection.pid,
@@ -569,12 +570,12 @@ fn start_backend(
 fn get_connection(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
-    _profile: Option<String>,
+    profile: Option<String>,
 ) -> Result<HermesConnection, String> {
     if let Some(connection) = remote_connection_from_config(&app, &state)? {
         return Ok(connection);
     }
-    let backend = ensure_backend(&app, &state, None)?;
+    let backend = ensure_backend(&app, &state, None, profile)?;
     Ok(backend.connection())
 }
 
@@ -582,12 +583,12 @@ fn get_connection(
 fn get_gateway_ws_url(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
-    _profile: Option<String>,
+    profile: Option<String>,
 ) -> Result<String, String> {
     if let Some(connection) = remote_connection_from_config(&app, &state)? {
         return Ok(connection.ws_url);
     }
-    let backend = ensure_backend(&app, &state, None)?;
+    let backend = ensure_backend(&app, &state, None, profile)?;
     Ok(backend.ws_url)
 }
 
@@ -596,7 +597,7 @@ fn revalidate_connection(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> RevalidateConnectionResult {
-    match current_backend_connection(&app, &state) {
+    match current_backend_connection(&app, &state, None) {
         Ok(connection) => match probe_backend_status(&connection, 2_500) {
             Ok(()) => RevalidateConnectionResult {
                 ok: true,
@@ -621,9 +622,9 @@ fn revalidate_connection(
 fn touch_backend(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
-    _profile: Option<String>,
+    profile: Option<String>,
 ) -> TouchBackendResult {
-    match current_backend_connection(&app, &state).and_then(|connection| {
+    match current_backend_connection(&app, &state, profile).and_then(|connection| {
         probe_backend_status(&connection, 2_500)?;
         Ok(())
     }) {
@@ -656,7 +657,8 @@ fn hermes_api(
     if let Some(connection) = remote_backend_connection_from_config(&app, &state)? {
         return connection.api(request);
     }
-    let backend = ensure_backend(&app, &state, None)?;
+    let profile = request.profile.clone();
+    let backend = ensure_backend(&app, &state, None, profile)?;
     backend.api(request)
 }
 
@@ -702,13 +704,7 @@ fn apply_connection_config(
     let existing = read_connection_config(&app)?;
     let config = coerce_connection_config(payload, existing)?;
     write_connection_config(&app, &config)?;
-    if config.mode != "remote" {
-        let mut backend = state
-            .backend
-            .lock()
-            .map_err(|_| "Backend state lock poisoned".to_string())?;
-        *backend = None;
-    }
+    teardown_all_backends(&state);
     Ok(connection_config_view(&app, &config, None, Some(&state)))
 }
 
@@ -726,7 +722,7 @@ fn set_active_profile(
     name: Option<String>,
 ) -> Result<DesktopActiveProfile, String> {
     let next = write_active_desktop_profile(&app, name.as_deref())?;
-    teardown_primary_backend(&state);
+    teardown_all_backends(&state);
     reload_main_window(&app);
     Ok(DesktopActiveProfile { profile: next })
 }
@@ -736,7 +732,7 @@ fn reset_bootstrap(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> BootstrapResetResult {
-    teardown_primary_backend(&state);
+    teardown_all_backends(&state);
     reset_boot_progress(&state);
     reload_main_window(&app);
     BootstrapResetResult { ok: true }
@@ -769,7 +765,7 @@ fn test_connection_config(
     let connection = if config.mode == "remote" {
         remote_backend_connection(&config, Some((&app, &state)))?
     } else {
-        ensure_backend(&app, &state, None)?
+        ensure_backend(&app, &state, None, None)?
     };
     let status = connection.api(ApiRequest {
         body: None,
@@ -2197,7 +2193,15 @@ fn ensure_backend(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, AppState>,
     requested_port: Option<u16>,
+    profile: Option<String>,
 ) -> Result<BackendConnection, String> {
+    let profile = normalize_desktop_profile_name(profile.as_deref())?;
+    let profile_key = backend_profile_key(profile.as_deref());
+    let active_key = backend_profile_key(read_active_desktop_profile(app).as_deref());
+    if requested_port.is_none() && profile_key != active_key {
+        return ensure_pooled_backend(app, state, profile);
+    }
+
     let mut guard = state
         .backend
         .lock()
@@ -2216,9 +2220,39 @@ fn ensure_backend(
         true,
         None,
     );
-    let runtime = launch_backend(app, state, requested_port)?;
+    let runtime = launch_backend(app, state, requested_port, profile, None)?;
     let connection = runtime.connection();
     *guard = Some(runtime);
+    Ok(connection)
+}
+
+fn ensure_pooled_backend(
+    app: &tauri::AppHandle,
+    state: &tauri::State<'_, AppState>,
+    profile: Option<String>,
+) -> Result<BackendConnection, String> {
+    let profile_key = backend_profile_key(profile.as_deref());
+    let mut guard = state
+        .backend_pool
+        .lock()
+        .map_err(|_| "Backend pool lock poisoned".to_string())?;
+
+    if let Some(runtime) = guard.get(&profile_key) {
+        return Ok(runtime.connection());
+    }
+
+    emit_boot_progress(
+        app,
+        state,
+        "tauri.backend.pool.resolve",
+        "Проверяю Hermes backend для профиля.",
+        12,
+        true,
+        None,
+    );
+    let runtime = launch_backend(app, state, None, profile, Some(profile_key.clone()))?;
+    let connection = runtime.connection();
+    guard.insert(profile_key, runtime);
     Ok(connection)
 }
 
@@ -2284,29 +2318,38 @@ fn watch_backend_exit(
     app: tauri::AppHandle,
     state: &tauri::State<'_, AppState>,
     mut child: ProcessChild,
+    pool_key: Option<String>,
 ) {
     let backend_state = Arc::clone(&state.backend);
+    let backend_pool = Arc::clone(&state.backend_pool);
     let boot_progress = Arc::clone(&state.boot_progress);
     std::thread::spawn(move || {
+        let pooled = pool_key.is_some();
         let status = child.wait().ok();
-        if let Ok(mut backend) = backend_state.lock() {
+        if let Some(key) = pool_key {
+            if let Ok(mut pool) = backend_pool.lock() {
+                pool.remove(&key);
+            }
+        } else if let Ok(mut backend) = backend_state.lock() {
             *backend = None;
         }
         let code = status.and_then(|value| value.code());
         let payload = BackendExit { code, signal: None };
-        if let Ok(mut progress) = boot_progress.lock() {
-            let current_progress = progress.progress;
-            *progress = BootProgress {
-                error: Some("Hermes dashboard завершился.".to_string()),
-                fake_mode: false,
-                message: "Hermes dashboard завершился.".to_string(),
-                phase: "tauri.backend.exit".to_string(),
-                progress: current_progress,
-                running: false,
-                timestamp: now_millis(),
-            };
+        if !pooled {
+            if let Ok(mut progress) = boot_progress.lock() {
+                let current_progress = progress.progress;
+                *progress = BootProgress {
+                    error: Some("Hermes dashboard завершился.".to_string()),
+                    fake_mode: false,
+                    message: "Hermes dashboard завершился.".to_string(),
+                    phase: "tauri.backend.exit".to_string(),
+                    progress: current_progress,
+                    running: false,
+                    timestamp: now_millis(),
+                };
+            }
+            let _ = app.emit("hermes:backend-exit", payload);
         }
-        let _ = app.emit("hermes:backend-exit", payload);
     });
 }
 
@@ -2314,6 +2357,8 @@ fn launch_backend(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, AppState>,
     requested_port: Option<u16>,
+    profile: Option<String>,
+    pool_key: Option<String>,
 ) -> Result<BackendRuntime, String> {
     let python = find_python().ok_or_else(|| "Python 3.11-3.14 не найден".to_string())?;
     emit_boot_progress(
@@ -2340,7 +2385,7 @@ fn launch_backend(
     );
     let mut child = Command::new(&python);
     child.args(["-m", "hermes_cli.main"]);
-    if let Some(profile) = read_active_desktop_profile(app) {
+    if let Some(profile) = profile.as_deref() {
         child.args(["--profile", &profile]);
     }
     child.args([
@@ -2378,7 +2423,7 @@ fn launch_backend(
         None,
     );
     wait_for_backend_ready(&mut child, port, &token, Duration::from_secs(45))?;
-    watch_backend_exit(app.clone(), state, child);
+    watch_backend_exit(app.clone(), state, child, pool_key);
     emit_boot_progress(
         app,
         state,
@@ -2400,6 +2445,24 @@ fn launch_backend(
 fn teardown_primary_backend(state: &tauri::State<'_, AppState>) {
     let runtime = state.backend.lock().ok().and_then(|mut guard| guard.take());
     if let Some(runtime) = runtime {
+        terminate_process(runtime.pid);
+    }
+}
+
+fn teardown_all_backends(state: &tauri::State<'_, AppState>) {
+    teardown_primary_backend(state);
+    let runtimes = state
+        .backend_pool
+        .lock()
+        .ok()
+        .map(|mut guard| {
+            guard
+                .drain()
+                .map(|(_, runtime)| runtime)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    for runtime in runtimes {
         terminate_process(runtime.pid);
     }
 }
@@ -3893,11 +3956,20 @@ fn remote_backend_connection(
 fn current_backend_connection(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, AppState>,
+    profile: Option<String>,
 ) -> Result<BackendConnection, String> {
     if let Some(connection) = remote_backend_connection_from_config(app, state)? {
         return Ok(connection);
     }
-    ensure_backend(app, state, None)
+    ensure_backend(app, state, None, profile)
+}
+
+fn backend_profile_key(profile: Option<&str>) -> String {
+    profile
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("default")
+        .to_string()
 }
 
 fn probe_backend_status(connection: &BackendConnection, timeout_ms: u64) -> Result<(), String> {
@@ -4818,6 +4890,14 @@ mod tests {
     }
 
     #[test]
+    fn normalizes_backend_profile_keys() {
+        assert_eq!(backend_profile_key(None), "default");
+        assert_eq!(backend_profile_key(Some("")), "default");
+        assert_eq!(backend_profile_key(Some("  ")), "default");
+        assert_eq!(backend_profile_key(Some("team_1")), "team_1");
+    }
+
+    #[test]
     fn strips_windows_extended_path_prefix() {
         assert_eq!(
             normalize_path_string(PathBuf::from(r"\\?\C:\Users\Hermes")),
@@ -5207,6 +5287,7 @@ fn main() {
     tauri::Builder::default()
         .manage(AppState {
             backend: Arc::new(Mutex::new(None)),
+            backend_pool: Arc::new(Mutex::new(HashMap::new())),
             boot_progress: Arc::new(Mutex::new(default_boot_progress())),
             oauth_sessions: Arc::new(Mutex::new(None)),
             preview_watchers: Arc::new(Mutex::new(HashMap::new())),

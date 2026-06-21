@@ -66,6 +66,8 @@ TypeScript-слой устанавливает совместимый `window.he
   `resetBootstrap`/`repairBootstrap`;
 - сохранение активного профиля, переключение профиля из интерфейса и запуск
   локального backend с выбранным профилем;
+- локальный backend pool для profile-scoped `getConnection`, `getGatewayWsUrl`,
+  `hermes_api` и `touchBackend` без смешивания активного и фоновых профилей;
 - синхронизация native theme и события состояния окна через
   `setNativeTheme`/`onWindowStateChanged`;
 - runtime-настройка цвета заголовка и фона через стабильный Tauri API,
