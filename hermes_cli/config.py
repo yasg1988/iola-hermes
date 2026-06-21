@@ -2975,6 +2975,22 @@ OPTIONAL_ENV_VARS = {
         "password": False,
         "category": "provider",
     },
+    "YANDEX_CLOUD_FOLDER_ID": {
+        "description": "Alternative Yandex Cloud folder ID variable for YandexGPT",
+        "prompt": "Yandex Cloud folder ID (leave empty if YANDEX_FOLDER_ID is set)",
+        "url": "https://yandex.cloud/ru/docs/resource-manager/operations/folder/get-id",
+        "password": False,
+        "category": "provider",
+        "advanced": True,
+    },
+    "YC_FOLDER_ID": {
+        "description": "Short Yandex Cloud folder ID alias for YandexGPT",
+        "prompt": "Yandex Cloud folder ID (leave empty if YANDEX_FOLDER_ID is set)",
+        "url": "https://yandex.cloud/ru/docs/resource-manager/operations/folder/get-id",
+        "password": False,
+        "category": "provider",
+        "advanced": True,
+    },
     "YANDEXGPT_BASE_URL": {
         "description": "YandexGPT OpenAI-compatible base URL override",
         "prompt": "YandexGPT base URL (leave empty for default)",

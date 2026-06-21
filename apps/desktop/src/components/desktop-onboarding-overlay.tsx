@@ -72,6 +72,20 @@ const API_KEY_OPTIONS: ApiKeyOption[] = [
     docsUrl: 'https://openrouter.ai/keys'
   },
   {
+    id: 'yandexgpt',
+    name: 'YandexGPT',
+    envKey: 'YANDEX_API_KEY',
+    docsUrl: 'https://yandex.cloud/ru/docs/foundation-models/quickstart/yandexgpt',
+    short: 'Yandex Cloud AI Studio'
+  },
+  {
+    id: 'gigachat',
+    name: 'GigaChat',
+    envKey: 'GIGACHAT_AUTH_KEY',
+    docsUrl: 'https://developers.sber.ru/docs/ru/gigachat/quickstart/ind-using-api',
+    short: 'Sber GigaChat API'
+  },
+  {
     id: 'openai',
     name: 'OpenAI',
     envKey: 'OPENAI_API_KEY',

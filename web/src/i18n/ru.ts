@@ -42,6 +42,8 @@ export const ru: Translations = {
     collapse: "Свернуть",
     expand: "Развернуть",
     general: "Общие",
+    gateway: "Шлюз",
+    gatewayHint: "Фоновый процесс, который подключает dashboard к агенту Hermes.",
     messaging: "Мессенджеры",
     pluginLoadFailed:
       "Не удалось загрузить скрипт этого плагина. Проверьте вкладку «Сеть» (dashboard-plugins/…) и путь к плагинам на сервере.",
@@ -90,6 +92,10 @@ export const ru: Translations = {
     statusOverview: "Обзор статуса",
     system: "Система",
     webUi: "Web UI",
+    managingProfile: "Управление профилем",
+    currentProfileOption: "этот dashboard ({name})",
+    managingProfileBanner:
+      "Управляется профиль «{name}»: конфигурация, ключи, навыки, MCP, модель и новые чаты применяются к этому профилю.",
   },
 
   status: {
@@ -277,6 +283,9 @@ export const ru: Translations = {
       discord: "Discord",
       slack: "Slack",
       email: "Email",
+      needsHomeChannel: "сначала задайте домашний канал",
+      noneConfigured:
+        "Мессенджеры не настроены. Настройте канал в разделе «Каналы», чтобы доставлять отчёты.",
     },
   },
 
@@ -310,6 +319,38 @@ export const ru: Translations = {
     created: "Создан",
     deleted: "Удалён",
     renamed: "Переименован",
+    activeProfile: "Активный профиль",
+    activeBadge: "активен",
+    setActive: "Сделать активным",
+    activeSet: "Активный профиль установлен",
+    gatewayRunning: "Gateway запущен",
+    gatewayStopped: "Gateway остановлен",
+    gatewayRunningWarning:
+      "Gateway этого профиля запущен — он будет остановлен.",
+    aliasBadge: "псевдоним",
+    description: "Описание",
+    descriptionPlaceholder:
+      "Для чего подходит этот профиль? Используется для маршрутизации kanban-задач по роли.",
+    noDescription: "Описание отсутствует",
+    editDescription: "Изменить описание",
+    descriptionSaved: "Описание сохранено",
+    reviewBadge: "проверка",
+    autoGenerate: "Сгенерировать",
+    generating: "Генерация…",
+    describeFailed: "Не удалось сгенерировать описание",
+    distribution: "Распределение",
+    advancedOptions: "Расширенные параметры",
+    cloneAll: "Клонировать всё (память, сессии, навыки, состояние)",
+    noSkillsOption: "Не добавлять встроенные навыки",
+    descriptionOptional: "Описание (необязательно)",
+    modelOptional: "Модель (необязательно)",
+    modelInherit: "Наследовать из клона / по умолчанию",
+    modelLoading: "Загрузка моделей…",
+    modelNone: "Нет аутентифицированных провайдеров — сначала задайте ключ",
+    editModel: "Изменить модель",
+    modelSaved: "Модель обновлена",
+    modelSelect: "Выберите модель",
+    actions: "Действия",
   },
 
   pluginsPage: {
@@ -371,6 +412,10 @@ export const ru: Translations = {
     setupNeeded: "Требуется настройка",
     disabledForCli: "Отключено для CLI",
     more: "+{count} ещё",
+    profileSelector: "Профиль",
+    currentProfile: "текущий ({name})",
+    managingProfile:
+      "Управляется профиль «{name}» — переключатели применяются к этому профилю, а не к dashboard.",
   },
 
   config: {
@@ -481,6 +526,12 @@ export const ru: Translations = {
   theme: {
     title: "Тема",
     switchTheme: "Сменить тему",
+    fontTitle: "Шрифт",
+    fontDefault: "По умолчанию для темы",
+    fontDefaultHint: "Использовать шрифт активной темы",
+    fontSans: "Без засечек",
+    fontSerif: "С засечками",
+    fontMono: "Моноширинный",
   },
 
   achievements: {
@@ -629,6 +680,9 @@ export const ru: Translations = {
     createTask: "Создать задачу в этой колонке",
     noTasks: "— нет задач —",
     unassigned: "без исполнителя",
+    needsAssignee: "Нужен исполнитель",
+    needsAssigneeHint:
+      "Зависимости выполнены, но dispatcher пропустит задачу, пока вы не назначите профиль.",
     untitled: "(без названия)",
     loadingDetail: "Загрузка…",
     addComment: "Добавить комментарий… (Enter — отправить)",
@@ -733,6 +787,8 @@ export const ru: Translations = {
       "Архивировать эту задачу? Она исчезнет из стандартного вида доски.",
     confirmBlocked:
       "Отметить эту задачу как заблокированную? Захват воркера будет освобождён.",
+    confirmScheduled:
+      "Переместить задачу в Scheduled? Используйте это для известных задержек по времени, а не для человеческих блокеров.",
     completionSummary:
       "Сводка завершения для {label}. Сохраняется как результат задачи.",
     completionSummaryRequired:

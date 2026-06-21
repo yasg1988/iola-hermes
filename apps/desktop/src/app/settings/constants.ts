@@ -53,28 +53,49 @@ export const PROVIDER_GROUPS: ProviderPrefix[] = [
     priority: 1
   },
   {
+    prefix: 'YANDEX_',
+    name: 'YandexGPT',
+    description: 'Yandex Cloud AI Studio models',
+    docsUrl: 'https://yandex.cloud/ru/docs/foundation-models/quickstart/yandexgpt',
+    priority: 2
+  },
+  {
+    prefix: 'YANDEXGPT_',
+    name: 'YandexGPT',
+    description: 'Yandex Cloud AI Studio models',
+    docsUrl: 'https://yandex.cloud/ru/docs/foundation-models/quickstart/yandexgpt',
+    priority: 2
+  },
+  {
+    prefix: 'GIGACHAT_',
+    name: 'GigaChat',
+    description: 'Sber GigaChat OpenAI-compatible API',
+    docsUrl: 'https://developers.sber.ru/docs/ru/gigachat/quickstart/ind-using-api',
+    priority: 3
+  },
+  {
     prefix: 'ANTHROPIC_',
     name: 'Anthropic',
     description: 'Claude API access (Sonnet, Opus, Haiku)',
     docsUrl: 'https://console.anthropic.com/settings/keys',
-    priority: 2
+    priority: 4
   },
   {
     prefix: 'XAI_',
     name: 'xAI',
     description: 'Grok models (use OAuth for SuperGrok / Premium+)',
     docsUrl: 'https://console.x.ai/',
-    priority: 3
+    priority: 5
   },
   {
     prefix: 'GOOGLE_',
     name: 'Gemini',
     description: 'Google AI Studio (Gemini 1.5 / 2.0 / 2.5)',
     docsUrl: 'https://aistudio.google.com/app/apikey',
-    priority: 4
+    priority: 6
   },
-  { prefix: 'GEMINI_', name: 'Gemini', priority: 4 },
-  { prefix: 'HERMES_GEMINI_', name: 'Gemini', priority: 4 },
+  { prefix: 'GEMINI_', name: 'Gemini', priority: 6 },
+  { prefix: 'HERMES_GEMINI_', name: 'Gemini', priority: 6 },
   {
     prefix: 'DEEPSEEK_',
     name: 'DeepSeek',

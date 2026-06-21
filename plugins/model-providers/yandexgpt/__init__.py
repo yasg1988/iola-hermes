@@ -33,7 +33,14 @@ yandexgpt = YandexGPTProfile(
     display_name="YandexGPT",
     description="YandexGPT через Yandex Cloud AI Studio",
     signup_url="https://yandex.cloud/ru/docs/ai-studio/operations/get-api-key",
-    env_vars=("YANDEX_API_KEY", "YANDEXGPT_API_KEY", "YANDEXGPT_BASE_URL"),
+    env_vars=(
+        "YANDEX_API_KEY",
+        "YANDEXGPT_API_KEY",
+        "YANDEX_FOLDER_ID",
+        "YANDEX_CLOUD_FOLDER_ID",
+        "YC_FOLDER_ID",
+        "YANDEXGPT_BASE_URL",
+    ),
     base_url="https://ai.api.cloud.yandex.net/v1",
     auth_type="api_key",
     fallback_models=(

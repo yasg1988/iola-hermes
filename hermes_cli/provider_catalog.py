@@ -129,6 +129,10 @@ def provider_catalog() -> list[ProviderDescriptor]:
         if cfg and getattr(cfg, "api_key_env_vars", ()):
             api_key_vars = tuple(cfg.api_key_env_vars)
             base_url_var = getattr(cfg, "base_url_env_var", "") or ""
+            if prof and getattr(prof, "env_vars", ()):
+                prof_key_vars, prof_base_url_var = _split_env_vars(tuple(prof.env_vars))
+                api_key_vars = tuple(dict.fromkeys((*api_key_vars, *prof_key_vars)))
+                base_url_var = base_url_var or prof_base_url_var
         elif prof and getattr(prof, "env_vars", ()):
             api_key_vars, base_url_var = _split_env_vars(tuple(prof.env_vars))
         else:
