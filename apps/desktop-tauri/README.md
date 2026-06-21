@@ -14,6 +14,13 @@ npm run --workspace apps/desktop-tauri check
 npm run --workspace apps/desktop-tauri build
 ```
 
+Публичные Windows/Linux пакеты публикуются в GitHub Releases как отдельные
+assets `Hermes-RU-Iola-Tauri-*`:
+
+- Windows: `Hermes-RU-Iola-Tauri-<version>-win-x64.exe`, `.msi`;
+- Linux: `Hermes-RU-Iola-Tauri-<version>-linux-x86_64.AppImage`, `.deb`,
+  `.rpm`.
+
 На текущем этапе Tauri-приложение собирает основной React UI из `apps/desktop`.
 Rust-часть поднимает локальный `hermes dashboard`, держит session token, отдает
 `getConnection`/`getGatewayWsUrl` и проксирует REST-запросы через `hermes_api`.
@@ -63,7 +70,8 @@ TypeScript-слой устанавливает совместимый `window.he
 - отдельные окна сессий через `openSessionWindow`/`openNewSessionWindow`:
   pop-out для существующей сессии, spectator/watch mode, компактное окно новой
   сессии и фокус уже открытого окна вместо дубликата;
-- Windows/Linux release workflow для Tauri-сборок.
+- Windows/Linux release workflow для Tauri-сборок и публикация отдельных
+  `Hermes-RU-Iola-Tauri-*` assets в GitHub Releases.
 
 ## Что дальше
 

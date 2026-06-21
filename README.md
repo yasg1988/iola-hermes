@@ -87,7 +87,9 @@ iola-hermes
 Desktop-приложение основано на Electron-сборке upstream Hermes. Имя приложения,
 идентификаторы релиза и ссылки обновления переведены на **Hermes RU Iola**.
 
-Планируемые форматы сборок:
+Пакеты Windows/Linux публикуются в
+[GitHub Releases](https://github.com/yasg1988/iola-hermes/releases).
+Основная Electron-сборка использует имена `Hermes-RU-Iola-*`.
 
 - Windows: `nsis`, `msi`
 - Linux: `AppImage`, `deb`, `rpm`
@@ -98,8 +100,9 @@ Desktop-приложение основано на Electron-сборке upstrea
 системном WebView. Оно собирает основной React-интерфейс desktop, запускает
 локальный backend через Tauri-мост, поддерживает gateway-подключения,
 обновления, уведомления, deep links и отдельные окна сессий. Проверка:
-`npm run tauri:check`. Сборка Tauri-артефактов Windows/Linux настроена в
-workflow `tauri-desktop-release.yml`.
+`npm run tauri:check`. Tauri-пакеты публикуются отдельными assets с маркером
+`Hermes-RU-Iola-Tauri-*`, чтобы updater не путал их с Electron-сборкой.
+Сборка настроена в workflow `tauri-desktop-release.yml`.
 
 ## Русификация
 
