@@ -353,9 +353,9 @@ export function installHermesDesktopBridge() {
     setTitleBarTheme: (payload: HermesTitleBarTheme) => void invoke('set_title_bar_theme', { payload }),
     setTranslucency: (payload: { intensity: number }) => void invoke('set_translucency', { payload }),
     settings: {
-      getDefaultProjectDir: async () => ({ defaultLabel: '', dir: null, resolvedCwd: '' }),
-      pickDefaultProjectDir: async () => ({ canceled: true, dir: null }),
-      setDefaultProjectDir: async (dir: null | string) => ({ dir })
+      getDefaultProjectDir: () => invoke('get_default_project_dir'),
+      pickDefaultProjectDir: () => invoke('pick_default_project_dir'),
+      setDefaultProjectDir: (dir: null | string) => invoke('set_default_project_dir', { dir })
     },
     signalDeepLinkReady: () => invoke('signal_deep_link_ready'),
     stopPreviewFileWatch: (id: string) => invoke<boolean>('stop_preview_file_watch', { id }),

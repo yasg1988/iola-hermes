@@ -286,6 +286,30 @@ struct SanitizedCwd {
     sanitized: bool,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DefaultProjectDirView {
+    default_label: String,
+    dir: Option<String>,
+    resolved_cwd: String,
+}
+
+#[derive(Debug, Serialize)]
+struct DefaultProjectDirSaveResult {
+    dir: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct DefaultProjectDirPickResult {
+    canceled: bool,
+    dir: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+struct DefaultProjectDirConfig {
+    dir: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SelectPathsOptions {
@@ -1204,6 +1228,62 @@ fn worktrees(cwds: Vec<String>) -> HashMap<String, Option<HermesWorktreeInfo>> {
 }
 
 #[tauri::command]
+fn get_default_project_dir(app: tauri::AppHandle) -> Result<DefaultProjectDirView, String> {
+    let default_dir = default_project_dir_fallback();
+    let configured = read_default_project_dir(&app);
+    Ok(DefaultProjectDirView {
+        default_label: normalize_path_string(default_dir.clone()),
+        dir: configured
+            .as_ref()
+            .map(|path| normalize_path_string(path.clone())),
+        resolved_cwd: normalize_path_string(configured.unwrap_or(default_dir)),
+    })
+}
+
+#[tauri::command]
+fn set_default_project_dir(
+    app: tauri::AppHandle,
+    dir: Option<String>,
+) -> Result<DefaultProjectDirSaveResult, String> {
+    let next = dir
+        .and_then(|value| {
+            let trimmed = value.trim();
+            (!trimmed.is_empty()).then(|| absolute_path(PathBuf::from(trimmed)))
+        })
+        .map(canonical_or_self);
+    if let Some(path) = next.as_ref() {
+        fs::create_dir_all(path)
+            .map_err(|error| format!("Не удалось создать папку проекта: {error}"))?;
+    }
+    let next = next.map(canonical_or_self);
+    write_default_project_dir(&app, next.as_ref())?;
+    Ok(DefaultProjectDirSaveResult {
+        dir: next.map(normalize_path_string),
+    })
+}
+
+#[tauri::command]
+fn pick_default_project_dir(app: tauri::AppHandle) -> Result<DefaultProjectDirPickResult, String> {
+    let default_path = read_default_project_dir(&app).unwrap_or_else(default_project_dir_fallback);
+    let picked = app
+        .dialog()
+        .file()
+        .set_title("Выберите папку проекта по умолчанию")
+        .set_directory(default_path)
+        .blocking_pick_folder();
+    Ok(match picked {
+        Some(path) => DefaultProjectDirPickResult {
+            canceled: false,
+            dir: Some(normalize_path_string(path.into_path().unwrap_or_default())),
+        },
+        None => DefaultProjectDirPickResult {
+            canceled: true,
+            dir: None,
+        },
+    })
+}
+
+#[tauri::command]
 fn select_paths(
     app: tauri::AppHandle,
     options: Option<SelectPathsOptions>,
@@ -2045,6 +2125,47 @@ fn translucency_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .app_config_dir()
         .map_err(|error| format!("Не удалось определить каталог настроек: {error}"))?;
     Ok(dir.join("translucency.json"))
+}
+
+fn default_project_dir_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| format!("Не удалось определить каталог настроек: {error}"))?;
+    Ok(dir.join("project-dir.json"))
+}
+
+fn default_project_dir_fallback() -> PathBuf {
+    home_dir()
+        .or_else(|| env::current_dir().ok())
+        .map(canonical_or_self)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn read_default_project_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
+    let path = default_project_dir_config_path(app).ok()?;
+    let raw = fs::read_to_string(path).ok()?;
+    let config = serde_json::from_str::<DefaultProjectDirConfig>(&raw).ok()?;
+    let dir = config.dir?.trim().to_string();
+    if dir.is_empty() {
+        return None;
+    }
+    let path = PathBuf::from(dir);
+    path.is_dir().then(|| canonical_or_self(path))
+}
+
+fn write_default_project_dir(app: &tauri::AppHandle, dir: Option<&PathBuf>) -> Result<(), String> {
+    let path = default_project_dir_config_path(app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Не удалось создать каталог настроек: {error}"))?;
+    }
+    let raw = serde_json::to_string_pretty(&DefaultProjectDirConfig {
+        dir: dir.map(|path| normalize_path_string(path.clone())),
+    })
+    .map_err(|error| format!("Не удалось сериализовать настройки папки проекта: {error}"))?;
+    fs::write(path, raw)
+        .map_err(|error| format!("Не удалось сохранить настройки папки проекта: {error}"))
 }
 
 fn clamp_translucency(value: i32) -> u8 {
@@ -3013,6 +3134,16 @@ fn canonical_or_self(path: PathBuf) -> PathBuf {
     path.canonicalize().unwrap_or(path)
 }
 
+fn absolute_path(path: PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        path
+    } else {
+        env::current_dir()
+            .map(|cwd| cwd.join(path))
+            .unwrap_or_else(|_| PathBuf::from("."))
+    }
+}
+
 fn file_path_from_preview_url(raw_url: &str) -> Result<PathBuf, String> {
     if raw_url.trim().is_empty() {
         return Err("Пустой путь предпросмотра".to_string());
@@ -3818,6 +3949,29 @@ mod tests {
     }
 
     #[test]
+    fn serializes_default_project_dir_config() {
+        let config = DefaultProjectDirConfig {
+            dir: Some("C:/Work/Hermes".to_string()),
+        };
+        let raw = serde_json::to_string(&config).expect("json");
+        let parsed = serde_json::from_str::<DefaultProjectDirConfig>(&raw).expect("parsed");
+
+        assert_eq!(parsed.dir.as_deref(), Some("C:/Work/Hermes"));
+    }
+
+    #[test]
+    fn strips_windows_extended_path_prefix() {
+        assert_eq!(
+            normalize_path_string(PathBuf::from(r"\\?\C:\Users\Hermes")),
+            "C:/Users/Hermes"
+        );
+        assert_eq!(
+            normalize_path_string(PathBuf::from(r"\\?\UNC\server\share")),
+            "//server/share"
+        );
+    }
+
+    #[test]
     fn parses_tauri_release_asset_versions() {
         assert_eq!(
             release_asset_version("Hermes-RU-Iola-Tauri-0.17.2-win-x64.exe").as_deref(),
@@ -4183,6 +4337,7 @@ fn main() {
             get_boot_progress,
             get_connection,
             get_connection_config,
+            get_default_project_dir,
             get_gateway_ws_url,
             get_recent_logs,
             get_version,
@@ -4193,6 +4348,7 @@ fn main() {
             open_new_session_window,
             open_session_window,
             open_external,
+            pick_default_project_dir,
             probe_connection_config,
             read_dir,
             read_file_data_url,
@@ -4204,6 +4360,7 @@ fn main() {
             save_image_from_url,
             save_connection_config,
             select_paths,
+            set_default_project_dir,
             set_native_theme,
             set_title_bar_theme,
             set_translucency,
