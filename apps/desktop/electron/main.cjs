@@ -2133,13 +2133,18 @@ function isBootstrapComplete() {
   if (!marker || typeof marker !== 'object') return false
   if (marker.schemaVersion !== BOOTSTRAP_MARKER_SCHEMA_VERSION) return false
   if (typeof marker.pinnedCommit !== 'string' || marker.pinnedCommit.length < 7) return false
-  // We DELIBERATELY do NOT verify that the checkout is currently at the
-  // pinned commit -- users update via the in-app update path or `hermes
-  // update`, which moves HEAD legitimately. The marker just attests "we
-  // ran the bootstrap successfully at least once." We DO additionally require
-  // a runnable venv: an interrupted or split-home install can leave the marker
-  // + checkout without a venv, and trusting that spawns a dead backend
-  // ("gateway offline") instead of re-running bootstrap to repair it.
+  // Packaged desktop releases pin the backend commit in install-stamp.json.
+  // An app reinstall updates the Electron shell but normally leaves
+  // %LOCALAPPDATA%/hermes/hermes-agent and this marker intact. If we trusted
+  // any old marker, a fresh .exe could still launch an old backend missing new
+  // providers/routes. Treat a marker from a different pinned commit as stale so
+  // the bootstrap runner refreshes the managed checkout before spawning.
+  if (INSTALL_STAMP?.commit && marker.pinnedCommit !== INSTALL_STAMP.commit) return false
+  // The marker attests "we ran the bootstrap successfully at this pinned
+  // commit." We additionally require a runnable venv: an interrupted or
+  // split-home install can leave the marker + checkout without a venv, and
+  // trusting that spawns a dead backend ("gateway offline") instead of
+  // re-running bootstrap to repair it.
   return isHermesSourceRoot(ACTIVE_HERMES_ROOT) && fileExists(getVenvPython(VENV_ROOT))
 }
 
@@ -2372,6 +2377,26 @@ function resolveHermesBackend(dashboardArgs) {
   //    (applyUpdates -> git pull) or `hermes update` from the CLI.
   if (isBootstrapComplete()) {
     return createActiveBackend(dashboardArgs)
+  }
+
+  if (IS_PACKAGED && isHermesSourceRoot(ACTIVE_HERMES_ROOT)) {
+    rememberLog(
+      `[bootstrap] managed Hermes install exists but marker is stale or incomplete; refreshing ` +
+        `to ${INSTALL_STAMP?.commit ? INSTALL_STAMP.commit.slice(0, 12) : 'the packaged ref'}`
+    )
+    return {
+      kind: 'bootstrap-needed',
+      label: 'Hermes RU Iola требует обновления backend',
+      command: null,
+      args: dashboardArgs,
+      bootstrap: true,
+      env: {},
+      shell: false,
+      activeRoot: ACTIVE_HERMES_ROOT,
+      installStamp: INSTALL_STAMP,
+      isPackaged: IS_PACKAGED,
+      platform: process.platform
+    }
   }
 
   // 4. Existing `hermes` on PATH -- installed via install.ps1 / install.sh from

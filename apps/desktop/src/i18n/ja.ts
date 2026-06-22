@@ -672,6 +672,12 @@ export const ja = defineLocale({
       provider: 'プロバイダー',
       model: 'モデル',
       applying: '適用中...',
+      defaultsLabel: 'デフォルト',
+      reasoning: '推論',
+      reasoningOff: 'オフ',
+      defaultsFailed: 'モデルのデフォルトを保存できませんでした',
+      staleAuxWarning: (count, names, provider) =>
+        `${count} 件の補助タスク（${names}）はまだ ${provider} で実行されており、メインモデルではありません。`,
       auxiliaryTitle: '補助モデル',
       resetAllToMain: 'すべてメインにリセット',
       auxiliaryDesc:
@@ -680,6 +686,13 @@ export const ja = defineLocale({
       change: '変更',
       autoUseMain: '自動 · メインモデルを使用',
       providerDefault: '(プロバイダーのデフォルト)',
+      otherProviders: '他のプロバイダー',
+      pasteApiKey: keyEnv => `${keyEnv} を貼り付け`,
+      activating: '有効化中...',
+      activate: '有効化',
+      setUpProvider: provider => `${provider} を設定`,
+      providerNeedsApiKey: provider => `${provider} には API キーが必要です。モデルを選ぶ前に設定してください。`,
+      providerSignsInBrowser: provider => `${provider} はブラウザーでサインインします。Hermes がこのフローを実行します。`,
       tasks: {
         vision: { label: 'ビジョン', hint: '画像分析' },
         web_extract: { label: 'ウェブ抽出', hint: 'ページの要約' },

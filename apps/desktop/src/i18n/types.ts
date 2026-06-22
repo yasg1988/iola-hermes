@@ -439,6 +439,7 @@ export interface Translations {
       reasoning: string
       reasoningOff: string
       defaultsFailed: string
+      staleAuxWarning: (count: number, names: string, provider: string) => string
       auxiliaryTitle: string
       resetAllToMain: string
       auxiliaryDesc: string
@@ -446,6 +447,13 @@ export interface Translations {
       change: string
       autoUseMain: string
       providerDefault: string
+      otherProviders: string
+      pasteApiKey: (keyEnv: string) => string
+      activating: string
+      activate: string
+      setUpProvider: (provider: string) => string
+      providerNeedsApiKey: (provider: string) => string
+      providerSignsInBrowser: (provider: string) => string
       tasks: Record<string, AuxTaskCopy>
     }
     providers: {

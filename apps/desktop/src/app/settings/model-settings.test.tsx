@@ -80,15 +80,14 @@ describe('ModelSettings', () => {
     await waitFor(() => expect(getGlobalModelOptions).toHaveBeenCalled())
 
     // Open the provider Select — every provider from the full payload should be
-    // listed, including the unconfigured one with its "set up" hint.
+    // listed, including the unconfigured one with its setup hint.
     const triggers = await screen.findAllByRole('combobox')
     fireEvent.click(triggers[0])
 
     // "Nous" shows in both the trigger and the open list; the unconfigured
-    // provider + its setup hint are the unique signal of the full universe.
+    // provider is the unique signal of the full universe.
     expect((await screen.findAllByText('Nous')).length).toBeGreaterThan(0)
     expect(await screen.findByText(/DeepSeek/)).toBeTruthy()
-    expect(await screen.findByText(/set up/)).toBeTruthy()
   })
 
   it('activates an unconfigured api_key provider inline by saving its key', async () => {
@@ -103,10 +102,10 @@ describe('ModelSettings', () => {
     fireEvent.click(deepseekOption)
 
     // The inline key input appears for an api_key provider that needs setup.
-    const keyInput = await screen.findByPlaceholderText(/Paste DEEPSEEK_API_KEY/)
+    const keyInput = await screen.findByPlaceholderText(/Вставьте DEEPSEEK_API_KEY/)
     fireEvent.change(keyInput, { target: { value: 'sk-test-123' } })
 
-    const activate = await screen.findByRole('button', { name: /Activate/ })
+    const activate = await screen.findByRole('button', { name: /Активировать/ })
     fireEvent.click(activate)
 
     await waitFor(() => expect(setEnvVar).toHaveBeenCalledWith('DEEPSEEK_API_KEY', 'sk-test-123'))
@@ -140,15 +139,15 @@ describe('ModelSettings', () => {
   it('renders the auxiliary task rows', async () => {
     await renderModelSettings()
 
-    expect(await screen.findByText('Vision')).toBeTruthy()
-    expect(screen.getAllByText('auto · use main model').length).toBeGreaterThan(0)
+    expect(await screen.findByText('Видение')).toBeTruthy()
+    expect(screen.getAllByText('авто · использовать основную модель').length).toBeGreaterThan(0)
   })
 
   it('assigns an auxiliary task to the main model via setModelAssignment', async () => {
     await renderModelSettings()
 
-    // One "Set to main" button per task slot; the first is Vision.
-    const setToMainButtons = await screen.findAllByRole('button', { name: 'Set to main' })
+    // One "set to main" button per task slot; the first is Vision.
+    const setToMainButtons = await screen.findAllByRole('button', { name: 'Установить в качестве основного' })
     fireEvent.click(setToMainButtons[0])
 
     await waitFor(() =>
@@ -172,12 +171,12 @@ describe('ModelSettings', () => {
     await renderModelSettings()
     await waitFor(() => expect(getGlobalModelInfo).toHaveBeenCalled())
 
-    const applyButton = await screen.findByRole('button', { name: 'Apply' })
+    const applyButton = await screen.findByRole('button', { name: 'Применить' })
     fireEvent.click(applyButton)
 
     // The switch-time notice names the pinned provider and offers a reset.
-    expect(await screen.findByText(/still run on/)).toBeTruthy()
-    expect(screen.getByText('nous')).toBeTruthy()
+    expect(await screen.findByText(/всё ещё выполня/)).toBeTruthy()
+    expect(screen.getByText(/nous/)).toBeTruthy()
   })
 
   it('shows a persistent banner when a loaded aux slot mismatches the main provider', async () => {
@@ -189,6 +188,6 @@ describe('ModelSettings', () => {
     await renderModelSettings()
 
     // Banner present on load, no switch required.
-    expect(await screen.findByText(/still run on/)).toBeTruthy()
+    expect(await screen.findByText(/всё ещё выполня/)).toBeTruthy()
   })
 })

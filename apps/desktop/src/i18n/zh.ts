@@ -742,6 +742,8 @@ export const zh: Translations = {
       reasoning: '推理',
       reasoningOff: '关闭',
       defaultsFailed: '保存模型默认值失败',
+      staleAuxWarning: (count, names, provider) =>
+        `${count} 个辅助任务（${names}）仍在 ${provider} 上运行，而不是主模型。`,
       auxiliaryTitle: '辅助模型',
       resetAllToMain: '全部重置为主模型',
       auxiliaryDesc: '辅助任务默认使用主模型。你可以为任意任务指定专用模型。',
@@ -749,6 +751,13 @@ export const zh: Translations = {
       change: '更改',
       autoUseMain: '自动 · 使用主模型',
       providerDefault: '(提供方默认)',
+      otherProviders: '其他提供方',
+      pasteApiKey: keyEnv => `粘贴 ${keyEnv}`,
+      activating: '正在激活...',
+      activate: '激活',
+      setUpProvider: provider => `设置 ${provider}`,
+      providerNeedsApiKey: provider => `${provider} 需要 API 密钥，请先设置后再选择模型。`,
+      providerSignsInBrowser: provider => `${provider} 通过浏览器登录，Hermes 会为你运行该流程。`,
       tasks: {
         vision: { label: '视觉', hint: '图片分析' },
         web_extract: { label: '网页提取', hint: '页面总结' },

@@ -548,6 +548,8 @@ export const en: Translations = {
       reasoning: 'Reasoning',
       reasoningOff: 'Off',
       defaultsFailed: 'Failed to save model defaults',
+      staleAuxWarning: (count, names, provider) =>
+        `${count} auxiliary task${count === 1 ? '' : 's'} (${names}) still run on ${provider}, not your main model.`,
       auxiliaryTitle: 'Auxiliary models',
       resetAllToMain: 'Reset all to main',
       auxiliaryDesc: 'Helper tasks run on the main model by default. Assign a dedicated model to any task to override.',
@@ -555,6 +557,13 @@ export const en: Translations = {
       change: 'Change',
       autoUseMain: 'auto · use main model',
       providerDefault: '(provider default)',
+      otherProviders: 'other providers',
+      pasteApiKey: keyEnv => `Paste ${keyEnv}`,
+      activating: 'Activating...',
+      activate: 'Activate',
+      setUpProvider: provider => `Set up ${provider}`,
+      providerNeedsApiKey: provider => `${provider} needs an API key — set it up to choose a model.`,
+      providerSignsInBrowser: provider => `${provider} signs in through your browser — Hermes runs the flow for you.`,
       tasks: {
         vision: { label: 'Vision', hint: 'Image analysis' },
         web_extract: { label: 'Web extract', hint: 'Page summarization' },

@@ -55,6 +55,34 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
+const RU_DEFAULT_MIGRATION_KEY = 'hermes-ru-default-locale-v1'
+
+function shouldMigrateDesktopDefaultLocale(config: HermesConfigRecord): boolean {
+  if (typeof window === 'undefined' || !window.hermesDesktop?.api) {
+    return false
+  }
+
+  try {
+    if (window.localStorage?.getItem(RU_DEFAULT_MIGRATION_KEY)) {
+      return false
+    }
+  } catch {
+    return false
+  }
+
+  const configured = getConfigDisplayLanguage(config)
+
+  return configured == null || normalizeLocale(configured) === 'en'
+}
+
+function markDesktopDefaultLocaleMigrated() {
+  try {
+    window.localStorage?.setItem(RU_DEFAULT_MIGRATION_KEY, '1')
+  } catch {
+    // Best effort only. A blocked localStorage should not break boot.
+  }
+}
+
 export interface I18nContextValue {
   configLoadError: Error | null
   isLoadingConfig: boolean
@@ -108,7 +136,14 @@ export function I18nProvider({ children, configClient = defaultConfigClient, ini
       .getConfig()
       .then(config => {
         if (!cancelled) {
-          setLocaleState(normalizeLocale(getConfigDisplayLanguage(config)))
+          if (shouldMigrateDesktopDefaultLocale(config)) {
+            const ruConfig = withConfigDisplayLanguage(config, DEFAULT_LOCALE)
+            setLocaleState(DEFAULT_LOCALE)
+            markDesktopDefaultLocaleMigrated()
+            void configClient.saveConfig(ruConfig).catch(() => undefined)
+          } else {
+            setLocaleState(normalizeLocale(getConfigDisplayLanguage(config)))
+          }
         }
       })
       .catch(error => {

@@ -767,6 +767,8 @@ export const ru: Translations = {
       reasoning: "Рассуждение",
       reasoningOff: "Выкл.",
       defaultsFailed: "Не удалось сохранить настройки модели по умолчанию.",
+      staleAuxWarning: (count, names, provider) =>
+        `${count} вспомогательн${count === 1 ? 'ая задача' : count >= 2 && count <= 4 ? 'ые задачи' : 'ых задач'} (${names}) всё ещё выполня${count === 1 ? 'ется' : 'ются'} на ${provider}, а не на основной модели.`,
       auxiliaryTitle: "Вспомогательные модели",
       resetAllToMain: "Сбросить все на главное",
       auxiliaryDesc: "Вспомогательные задачи по умолчанию выполняются в основной модели. Назначьте специальную модель для любой задачи, которую нужно переопределить.",
@@ -774,6 +776,13 @@ export const ru: Translations = {
       change: "Изменить",
       autoUseMain: "авто · использовать основную модель",
       providerDefault: "(по умолчанию провайдер)",
+      otherProviders: "других провайдерах",
+      pasteApiKey: keyEnv => `Вставьте ${keyEnv}`,
+      activating: "Активация...",
+      activate: "Активировать",
+      setUpProvider: provider => `Настроить ${provider}`,
+      providerNeedsApiKey: provider => `${provider} требует API-ключ — настройте его, чтобы выбрать модель.`,
+      providerSignsInBrowser: provider => `${provider} выполняет вход через браузер — Hermes запустит этот сценарий.`,
       tasks: {
         vision: { label: "Видение", hint: "Анализ изображений" },
         web_extract: { label: "Веб-выдержка", hint: "Подведение итогов страницы" },

@@ -78,6 +78,9 @@ interface StaleAuxWarningProps {
 // $0-balance provider after switching main away from it) and offers the
 // existing one-click reset rather than auto-clearing legitimate pins.
 function StaleAuxWarning({ applying, onReset, slots, taskLabel }: StaleAuxWarningProps) {
+  const { t } = useI18n()
+  const m = t.settings.model
+
   if (!slots.length) {
     return null
   }
@@ -85,16 +88,14 @@ function StaleAuxWarning({ applying, onReset, slots, taskLabel }: StaleAuxWarnin
   const provider = slots[0].provider
   const allSameProvider = slots.every(slot => slot.provider === provider)
   const names = slots.map(slot => taskLabel(slot.task)).join(', ')
+  const providerLabel = allSameProvider ? provider : m.otherProviders
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
       <AlertTriangle className="size-3.5 shrink-0" />
-      <span className="grow">
-        {slots.length} auxiliary task{slots.length === 1 ? '' : 's'} ({names}) still run on{' '}
-        <span className="font-mono">{allSameProvider ? provider : 'other providers'}</span>, not your main model.
-      </span>
+      <span className="grow">{m.staleAuxWarning(slots.length, names, providerLabel)}</span>
       <Button disabled={applying} onClick={onReset} size="sm" variant="textStrong">
-        Reset all to main
+        {m.resetAllToMain}
       </Button>
     </div>
   )
@@ -442,7 +443,7 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
                       void activateApiKeyProvider()
                     }
                   }}
-                  placeholder={`Paste ${selectedProviderRow?.key_env ?? 'API key'}`}
+                  placeholder={m.pasteApiKey(selectedProviderRow?.key_env ?? 'API key')}
                   type="password"
                   value={apiKeyDraft}
                 />
@@ -452,12 +453,12 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
                   size="sm"
                 >
                   {activating && <Loader2 className="size-3.5 animate-spin" />}
-                  {activating ? 'Activating...' : 'Activate'}
+                  {activating ? m.activating : m.activate}
                 </Button>
               </>
             ) : (
               <Button onClick={startProviderSetup} size="sm" variant="textStrong">
-                Set up {selectedProviderRow?.name ?? 'provider'}
+                {m.setUpProvider(selectedProviderRow?.name ?? m.provider)}
               </Button>
             )
           ) : (
@@ -488,8 +489,8 @@ export function ModelSettings({ onMainModelChanged }: ModelSettingsProps) {
         {needsSetup && !setupIsApiKey && (
           <p className="mt-2 text-xs text-muted-foreground">
             {selectedProviderRow?.auth_type === 'api_key'
-              ? `${selectedProviderRow?.name} needs an API key — set it up to choose a model.`
-              : `${selectedProviderRow?.name} signs in through your browser — Hermes runs the flow for you.`}
+              ? m.providerNeedsApiKey(selectedProviderRow?.name ?? m.provider)
+              : m.providerSignsInBrowser(selectedProviderRow?.name ?? m.provider)}
           </p>
         )}
         {config && mainModel && (reasoningSupported || fastSupported) && (
